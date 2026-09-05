@@ -35,14 +35,11 @@ public class BookingService {
         return toDto(booking);
     }
 
-    public BookingDto updateBooking(BookingDto dto) {
-
-        Long bookingId = dto.id();
+    public BookingDto updateBooking(Long bookingId, StatusRequest newStatus) {
         BookingRequest booking = bookingRepo.findById(bookingId)
                 .orElseThrow(() -> new IllegalArgumentException("Cannot find request with id " + bookingId));
 
-        booking.setStatus(StatusRequest.NEW);
-        booking.setCreateDate(LocalDateTime.now());
+        booking.setStatus(newStatus);
 
         BookingRequest savedBooking = bookingRepo.save(booking);
         return toDto(savedBooking);

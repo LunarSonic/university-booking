@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 public class BookingRequest {
 
     @Id
-    private long id;
+    private Long id;
     private long userId;
     private int room;
     private LocalDateTime bookingDate;
