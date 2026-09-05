@@ -1,5 +1,25 @@
 services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_DATA_REDIS_HOST: redis
+
   redis:
     image: redis:7
     ports:
       - "6379:6379"
+    command: redis-server --appendonly yes --appendfsync everysec --save 900 1 --notify-keyspace-events Ex --loglevel warning
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+
+volumes:
+  redis-data:
