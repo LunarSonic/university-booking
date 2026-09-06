@@ -6,4 +6,4 @@ spring:
       host: localhost
       port: 6379
 basket:
-  ttl-seconds: ${BASKET_TTL_SECONDS}
+  ttl-seconds: ${BASKET_TTL_SECONDS:300}
