@@ -13,6 +13,6 @@ public record BookingDto(
         @Positive Integer room,
         @Future LocalDateTime bookingDate,
         StatusRequest statusRequest,
-        @Future LocalDateTime createDate
+        LocalDateTime createDate
 ){
 }

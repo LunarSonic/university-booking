@@ -8,6 +8,7 @@ services:
         condition: service_healthy
     environment:
       SPRING_DATA_REDIS_HOST: redis
+      BASKET_TTL_SECONDS: ${BASKET_TTL_SECONDS}
 
   redis:
     image: redis:7
