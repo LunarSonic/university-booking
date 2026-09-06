@@ -25,7 +25,7 @@ public class RedisConfig {
                 .serializeKeysWith(RedisSerializationContext.SerializationPair
                         .fromSerializer(RedisSerializer.string()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair
-                        .fromSerializer(RedisSerializer.json()));
+                        .fromSerializer(GenericJacksonJsonRedisSerializer.builder().build()));
         return RedisCacheManager
                 .builder(connectionFactory)
                 .cacheDefaults(redisCacheConfiguration)
