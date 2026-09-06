@@ -1,5 +1,6 @@
 package ru.universitybooking.service;
 
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import ru.universitybooking.dto.BookingDto;
 import ru.universitybooking.entity.BookingRequest;
@@ -12,13 +13,16 @@ import java.time.LocalDateTime;
 public class BookingService {
 
     private final BookingRepo bookingRepo;
+    private final StringRedisTemplate stringRedisTemplate;
 
-    public BookingService(BookingRepo bookingRepo) {
+    public BookingService(BookingRepo bookingRepo, StringRedisTemplate stringRedisTemplate) {
         this.bookingRepo = bookingRepo;
+        this.stringRedisTemplate = stringRedisTemplate;
     }
 
     public BookingDto createBooking(BookingDto dto) {
         BookingRequest booking = new BookingRequest();
+        booking.setId(stringRedisTemplate.opsForValue().increment("BookingRequest:sequence"));
         booking.setUserId(dto.userId());
         booking.setRoom(dto.room());
         booking.setBookingDate(dto.bookingDate());
