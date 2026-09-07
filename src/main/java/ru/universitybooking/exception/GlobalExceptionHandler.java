@@ -12,9 +12,15 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(IllegalArgumentException.class)
+    @ExceptionHandler(BookingNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public Map<String, String> handleIllegalArgumentException(IllegalArgumentException e) {
+    public Map<String, String> handleBookingNotFoundException(BookingNotFoundException e) {
+        return Map.of("error", e.getMessage());
+    }
+
+    @ExceptionHandler(BasketItemNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Map<String, String> handleBasketItemNotFoundException(BasketItemNotFoundException e) {
         return Map.of("error", e.getMessage());
     }
 

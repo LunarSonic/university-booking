@@ -7,6 +7,8 @@ import ru.universitybooking.dto.BookingDto;
 import ru.universitybooking.entity.StatusRequest;
 import ru.universitybooking.service.BookingService;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/bookings")
 public class BookingController {
@@ -39,5 +41,11 @@ public class BookingController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteBooking(@PathVariable Long id) {
         bookingService.deleteBooking(id);
+    }
+
+    @GetMapping
+    @ResponseStatus(HttpStatus.OK)
+    public List<BookingDto> getBookings(@RequestParam StatusRequest status) {
+        return bookingService.getBookingsByStatus(status);
     }
 }

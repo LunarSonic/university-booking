@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import ru.universitybooking.dto.BasketItemRequest;
 import ru.universitybooking.dto.BasketItemResponse;
+import ru.universitybooking.dto.BookingDto;
 import ru.universitybooking.service.BasketService;
 
 import java.util.List;
@@ -34,5 +35,11 @@ public class BasketController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteBasket(@PathVariable Long id) {
         basketService.deleteItem(id);
+    }
+
+    @PostMapping("/{id}/checkout")
+    @ResponseStatus(HttpStatus.CREATED)
+    public BookingDto checkout(@PathVariable Long id) {
+        return basketService.checkout(id);
     }
 }

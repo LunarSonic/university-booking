@@ -5,9 +5,11 @@ import org.springframework.stereotype.Service;
 import ru.universitybooking.dto.BookingDto;
 import ru.universitybooking.entity.BookingRequest;
 import ru.universitybooking.entity.StatusRequest;
+import ru.universitybooking.exception.BookingNotFoundException;
 import ru.universitybooking.repository.BookingRepo;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class BookingService {
@@ -35,13 +37,13 @@ public class BookingService {
 
     public BookingDto getBooking(Long bookingId) {
         BookingRequest booking = bookingRepo.findById(bookingId)
-                .orElseThrow(() -> new IllegalArgumentException("Cannot find request with id " + bookingId));
+                .orElseThrow(() -> new BookingNotFoundException("Cannot find request with id " + bookingId));
         return toDto(booking);
     }
 
     public BookingDto updateBooking(Long bookingId, StatusRequest newStatus) {
         BookingRequest booking = bookingRepo.findById(bookingId)
-                .orElseThrow(() -> new IllegalArgumentException("Cannot find request with id " + bookingId));
+                .orElseThrow(() -> new BookingNotFoundException("Cannot find request with id " + bookingId));
 
         booking.setStatus(newStatus);
 
@@ -52,6 +54,13 @@ public class BookingService {
 
     public void deleteBooking(Long bookingId) {
         bookingRepo.deleteById(bookingId);
+    }
+
+    public List<BookingDto> getBookingsByStatus(StatusRequest status) {
+        return bookingRepo.findByStatus(status)
+                .stream()
+                .map(this::toDto)
+                .toList();
     }
 
     public BookingDto toDto(BookingRequest savedBooking) {

@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.redis.core.RedisHash;
+import org.springframework.data.redis.core.index.Indexed;
 
 import java.time.LocalDateTime;
 
@@ -16,10 +17,13 @@ public class BookingRequest {
 
     @Id
     private Long id;
-    private long userId;
+    private Long userId;
     private int room;
     private LocalDateTime bookingDate;
+
+    @Indexed
     private StatusRequest status;
+
     private LocalDateTime createDate;
 
 }

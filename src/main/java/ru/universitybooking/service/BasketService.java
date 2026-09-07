@@ -5,7 +5,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import ru.universitybooking.dto.BasketItemRequest;
 import ru.universitybooking.dto.BasketItemResponse;
+import ru.universitybooking.dto.BookingDto;
 import ru.universitybooking.entity.BasketItem;
+import ru.universitybooking.exception.BasketItemNotFoundException;
 import ru.universitybooking.repository.BasketRepo;
 
 import java.time.LocalDateTime;
@@ -16,13 +18,15 @@ public class BasketService {
 
     private final BasketRepo basketRepo;
     private final StringRedisTemplate stringRedisTemplate;
+    private final BookingService bookingService;
 
     @Value("${basket.ttl-seconds}")
     private Long ttlSeconds;
 
-    public BasketService(BasketRepo basketRepo, StringRedisTemplate stringRedisTemplate) {
+    public BasketService(BasketRepo basketRepo, StringRedisTemplate stringRedisTemplate, BookingService bookingService) {
         this.basketRepo = basketRepo;
         this.stringRedisTemplate = stringRedisTemplate;
+        this.bookingService = bookingService;
     }
 
     public BasketItemResponse addItem(BasketItemRequest dto) {
@@ -46,6 +50,15 @@ public class BasketService {
                 .stream()
                 .map(this::toDto)
                 .toList();
+    }
+
+    public BookingDto checkout(Long basketItemId) {
+        BasketItem item = basketRepo.findById(basketItemId)
+                .orElseThrow(() -> new BasketItemNotFoundException("Cannot find basket item with id " + basketItemId));
+        BookingDto bookingDto = new BookingDto(null, item.getUserId(), item.getRoom(), item.getBookingDate(), null, null);
+        BookingDto created = bookingService.createBooking(bookingDto);
+        basketRepo.deleteById(basketItemId);
+        return created;
     }
 
     private BasketItemResponse toDto(BasketItem item) {
