@@ -14,7 +14,7 @@ services:
     image: redis:7
     ports:
       - "6379:6379"
-    command: redis-server --appendonly yes --appendfsync everysec --save 900 1 --notify-keyspace-events Ex --loglevel warning
+    command: redis-server --appendonly yes --appendfsync everysec --save 900 1
     volumes:
       - redis-data:/data
     healthcheck:
