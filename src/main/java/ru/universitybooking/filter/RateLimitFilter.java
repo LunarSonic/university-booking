@@ -18,7 +18,7 @@ public class RateLimitFilter implements Filter {
         this.rateLimiterService = rateLimiterService;
     }
 
-    private static final long MAX_REQUEST = 5;
+    private static final long MAX_REQUEST = 10;
     private static final Duration MAX_REQUESTS = Duration.ofMinutes(1);
 
     @Override
