@@ -3,7 +3,7 @@ spring:
     name: university-booking
   data:
     redis:
-      host: localhost
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
       port: 6379
 basket:
   ttl-seconds: ${BASKET_TTL_SECONDS:60}
