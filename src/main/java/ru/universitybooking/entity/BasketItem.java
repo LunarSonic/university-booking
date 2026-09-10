@@ -22,6 +22,8 @@ public class BasketItem {
     @Indexed
     private Long userId;
 
+    private Long serviceId;
+
     private int room;
     private LocalDateTime bookingDate;
     private LocalDateTime addedAt;

@@ -1,29 +1,40 @@
 package ru.universitybooking.entity;
 
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.redis.core.RedisHash;
-import org.springframework.data.redis.core.index.Indexed;
 
 import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@RedisHash("BookingRequest")
+@Entity
+@Table(name = "bookings")
 public class BookingRequest {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "user_id", nullable = false)
     private Long userId;
+
+    @Column(name = "service_id")
+    private Long serviceId;
+
+    @Column(name = "room", nullable = false)
     private int room;
+
+    @Column(name = "booking_date", nullable = false)
     private LocalDateTime bookingDate;
 
-    @Indexed
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
     private StatusRequest status;
 
+    @Column(name = "create_date", nullable = false)
     private LocalDateTime createDate;
 
 }

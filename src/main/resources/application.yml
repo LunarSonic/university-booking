@@ -3,7 +3,19 @@ spring:
     name: university-booking
   data:
     redis:
-      host: localhost
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
       port: 6379
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
 basket:
   ttl-seconds: ${BASKET_TTL_SECONDS:300}

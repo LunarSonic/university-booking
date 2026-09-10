@@ -33,6 +33,7 @@ public class BasketService {
         BasketItem item = new BasketItem();
         item.setId(stringRedisTemplate.opsForValue().increment("BasketItem:sequence"));
         item.setUserId(dto.userId());
+        item.setServiceId(dto.serviceId());
         item.setRoom(dto.room());
         item.setAddedAt(LocalDateTime.now());
         item.setBookingDate(dto.bookingDate());
@@ -55,7 +56,7 @@ public class BasketService {
     public BookingDto checkout(Long basketItemId) {
         BasketItem item = basketRepo.findById(basketItemId)
                 .orElseThrow(() -> new BasketItemNotFoundException("Cannot find basket item with id " + basketItemId));
-        BookingDto bookingDto = new BookingDto(null, item.getUserId(), item.getRoom(), item.getBookingDate(), null, null);
+        BookingDto bookingDto = new BookingDto(null, item.getUserId(), item.getServiceId(), item.getRoom(), item.getBookingDate(), null, null);
         BookingDto created = bookingService.createBooking(bookingDto);
         basketRepo.deleteById(basketItemId);
         return created;
@@ -65,6 +66,7 @@ public class BasketService {
         return new BasketItemResponse(
                 item.getId(),
                 item.getUserId(),
+                item.getServiceId(),
                 item.getRoom(),
                 item.getBookingDate(),
                 item.getAddedAt()

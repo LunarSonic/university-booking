@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 
 public record BasketItemRequest(
         @NotNull Long userId,
+        @NotNull Long serviceId,
         @Positive int room,
         @Future LocalDateTime bookingDate
 ) {}

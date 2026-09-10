@@ -3,6 +3,7 @@
 ![Java](https://img.shields.io/badge/Java-22-orange?logo=openjdk)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1-6DB33F?logo=springboot&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
 ![Gradle](https://img.shields.io/badge/Gradle-02303A?logo=gradle&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
 
@@ -15,7 +16,7 @@ REST API для управления заявками на бронирован�
 | Основной объект    | Заявка                      |
 | Роль               | Администратор               |
 | Сценарий           | Создание и обработка заявки |
-| Хранилище          | Redis                       |
+| Хранилище          | PostgreSQL + Redis          |
 | Временное хранение | Временная корзина (TTL)     |
 | Кэширование        | Список доступных услуг      |
 | Атомарный механизм | Rate limiter для REST API   |
@@ -34,15 +35,18 @@ REST API для управления заявками на бронирован�
 git clone https://github.com/LunarSonic/university-booking.git
 cd university-booking
 
-# 2. Запустите 2 контейнера
+# 2. Запустите 3 контейнера
 docker compose up -d --build
 ```
+
+При первом запуске `DataInitializer` автоматически заполняет таблицу `services` начальными данными.
 
 ### Сервисы
 
 | Сервис     | URL                   |
 |:-----------|:----------------------|
 | Приложение | http://localhost:8080 |
+| PostgreSQL | localhost:5434        |
 | Redis      | localhost:6379        |
 
 ### Остановка
@@ -51,6 +55,16 @@ docker compose up -d --build
 docker compose down       # данные сохраняются
 docker compose down -v    # с удалением volume
 ```
+
+## Архитектура хранения
+
+| Данные                            | Хранилище  | Назначение                                    |
+|-----------------------------------|------------|-----------------------------------------------|
+| Заявки (BookingRequest)           | PostgreSQL | Постоянное хранение с ACID-гарантиями         |
+| Каталог услуг (UniversityService) | PostgreSQL | Справочник услуг, инициализируется при старте |
+| Временная корзина (BasketItem)    | Redis      | Хранение с автоматическим TTL                 |
+| Кэш каталога услуг                | Redis      | Кэширование данных на 30 минут                |
+| Rate limiter                      | Redis      | Атомарный счётчик запросов                    |
 
 ## Основной сценарий
 
@@ -78,7 +92,7 @@ docker compose down -v    # с удалением volume
 ```bash
 curl -X POST http://localhost:8080/bookings \
   -H "Content-Type: application/json" \
-  -d '{"userId": 1, "room": 305, "bookingDate": "2026-12-01T10:00:00"}'
+  -d '{"userId": 1, "serviceId": 1, "room": 305, "bookingDate": "2026-12-01T10:00:00"}'
 ```
 
 Список новых заявок:
@@ -104,7 +118,7 @@ curl -X PATCH "http://localhost:8080/bookings/1?status=APPROVED"
 ```bash
 curl -X POST http://localhost:8080/basket \
   -H "Content-Type: application/json" \
-  -d '{"userId": 1, "room": 210, "bookingDate": "2026-12-01T14:00:00"}'
+  -d '{"userId": 1, "serviceId": 2, "room": 210, "bookingDate": "2026-12-01T14:00:00"}'
 ```
 
 Оформление в заявку:
@@ -120,7 +134,7 @@ curl -X POST http://localhost:8080/basket/1/checkout
 |-------|-------------|-------------------------------------|
 | `GET` | `/services` | Список услуг (кэшируется на 30 мин) |
 
-Первый вызов занимает около 3 секунд (имитация обращения к медленному источнику). Последующие отдаются мгновенно из кэша Redis.
+Первый вызов загружает данные из PostgreSQL. Последующие отдаются мгновенно из кэша.
 
 ### Rate Limiter
 
@@ -128,18 +142,12 @@ curl -X POST http://localhost:8080/basket/1/checkout
 
 ## Ключи в Redis
 
-| Вид ключа                        | Тип Redis | Назначение                                        |
-|----------------------------------|-----------|---------------------------------------------------|
-| `BasketItem:sequence`            | String    | Счётчик для автоинкремента ID корзины             |
-| `BookingRequest:sequence`        | String    | Счётчик для автоинкремента ID заявок              |
-| `BookingRequest:{id}:idx`        | Set       | Служебный: список индексов заявки (для очистки)   |
-| `BookingRequest`                 | Set       | Множество всех ID заявок                          |
-| `BookingRequest:{id}`            | Hash      | Заявка на бронирование (все поля объекта)         |
-| `BasketItem`                     | Set       | Множество всех ID корзины                         |
-| `BookingRequest:status:{STATUS}` | Set       | Вторичный индекс: ID заявок по статусу            |
-| `BasketItem:{id}:idx`            | Set       | Служебный: список индексов элемента (для очистки) |
-| `BasketItem:userId:{userId}`     | Set       | Вторичный индекс: ID элементов корзины по userId  |
-| `BasketItem:{id}`                | Hash      | Элемент временной корзины                         |
-| `rate_limiter:{ip}`              | String    | Счётчик запросов для rate limiter                 |
-| `services::SimpleKey []`         | String    | Кэш списка услуг                                  |
-
+| Вид ключа                    | Тип Redis | Назначение                                        |
+|------------------------------|-----------|---------------------------------------------------|
+| `BasketItem:sequence`        | String    | Счётчик для автоинкремента ID корзины             |
+| `BasketItem`                 | Set       | Множество всех ID корзины                         |
+| `BasketItem:{id}`            | Hash      | Элемент временной корзины                         |
+| `BasketItem:{id}:idx`        | Set       | Служебный: список индексов элемента (для очистки) |
+| `BasketItem:userId:{userId}` | Set       | Вторичный индекс: ID элементов корзины по userId  |
+| `rate_limiter:{ip}`          | String    | Счётчик запросов для rate limiter                 |
+| `services::SimpleKey []`     | String    | Кэш списка услуг                                  |
