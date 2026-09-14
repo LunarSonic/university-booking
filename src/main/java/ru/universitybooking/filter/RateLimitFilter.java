@@ -18,7 +18,7 @@ public class RateLimitFilter implements Filter {
         this.rateLimiterService = rateLimiterService;
     }
 
-    private static final long MAX_REQUEST = 10;
+    private static final long MAX_REQUEST = 30;
     private static final Duration MAX_REQUESTS = Duration.ofMinutes(1);
 
     @Override
@@ -28,6 +28,11 @@ public class RateLimitFilter implements Filter {
         HttpServletRequest request = (HttpServletRequest) servletRequest;
         HttpServletResponse response = (HttpServletResponse) servletResponse;
 
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(servletRequest, servletResponse);
+            return;
+        }
+
         String ip = request.getRemoteAddr();
 
         boolean allowed = rateLimiterService.isAllowed(ip, MAX_REQUEST, MAX_REQUESTS);
@@ -36,7 +41,7 @@ public class RateLimitFilter implements Filter {
             response.setStatus(429);
             response.setContentType("application/json");
             response.setCharacterEncoding("UTF-8");
-            response.getWriter().write("{\"error\": \"Превышен лимит запросов\"}");
+            response.getWriter().write("{\"error\": \"Превышен лимит запросов. Пожалуйста, подождите минуту.\"}");
             return;
         }
 
