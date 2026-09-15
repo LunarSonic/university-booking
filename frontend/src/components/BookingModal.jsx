@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Calendar, MapPin, Send, ShoppingCart, Layers } from 'lucide-react';
 
 export function BookingModal({ service, services = [], userId, onClose, onAddToBasket, onCreateDirectBooking }) {
-  // Select service
   const [selectedServiceId, setSelectedServiceId] = useState(
     service?.id || (services.length > 0 ? services[0].id : 1)
   );
@@ -15,9 +14,8 @@ export function BookingModal({ service, services = [], userId, onClose, onAddToB
     }
   }, [service, services]);
 
-  const [room, setRoom] = useState(305);
+  const [room, setRoom] = useState('305');
 
-  // Default to tomorrow 10:00 in local time
   const getInitialDateTime = () => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
@@ -36,12 +34,29 @@ export function BookingModal({ service, services = [], userId, onClose, onAddToB
   const [bookingDate, setBookingDate] = useState(getInitialDateTime());
   const [loading, setLoading] = useState(false);
   const [validationError, setValidationError] = useState('');
+  const modalRef = useRef(null);
+
+  const [minDateTime, setMinDateTime] = useState(getMinDateTime);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setMinDateTime(getMinDateTime());
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    modalRef.current?.focus();
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const formatToIsoSeconds = (dtString) => {
     if (!dtString) return '';
-    // If it has seconds already (length 19), return as is
     if (dtString.length === 19) return dtString;
-    // If format is YYYY-MM-DDTHH:mm (length 16), append :00
     if (dtString.length === 16) return `${dtString}:00`;
     return dtString;
   };
@@ -55,7 +70,7 @@ export function BookingModal({ service, services = [], userId, onClose, onAddToB
     }
 
     if (!selectedServiceId) {
-      setValidationError('Пожалуйста, выберите услугу');
+      setValidationError('Выберите услугу');
       return;
     }
 
@@ -88,88 +103,93 @@ export function BookingModal({ service, services = [], userId, onClose, onAddToB
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-          <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Оформление бронирования</h3>
-          <button className="btn btn-outline btn-sm" onClick={onClose}>
-            <X size={16} />
+    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} ref={modalRef} tabIndex={-1}>
+        <div className="modal-header">
+          <h3 id="modal-title">Оформление бронирования</h3>
+          <button className="btn btn-outline btn-sm modal-close-btn" onClick={onClose}>
+            <X size={18} />
           </button>
         </div>
 
-        {validationError && (
-          <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#f87171', padding: '0.65rem 0.85rem', borderRadius: '0.5rem', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
-            {validationError}
+        <div className="modal-body">
+          {validationError && (
+            <div className="form-error">
+              {validationError}
+            </div>
+          )}
+
+          <div className="form-group">
+            <label htmlFor="field-service" className="form-label">
+              <Layers size={13} className="form-label-icon" />
+              Услуга
+            </label>
+            <select
+              id="field-service"
+              className="form-input"
+              value={selectedServiceId}
+              onChange={(e) => setSelectedServiceId(Number(e.target.value))}
+            >
+              {services.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
           </div>
-        )}
 
-        <div className="form-group">
-          <label className="form-label">
-            <Layers size={14} style={{ display: 'inline', marginRight: '4px' }} />
-            Выберите услугу или ресурс
-          </label>
-          <select
-            className="form-input"
-            value={selectedServiceId}
-            onChange={(e) => setSelectedServiceId(Number(e.target.value))}
-          >
-            {services.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </div>
+          <div className="form-group">
+            <label htmlFor="field-room" className="form-label">
+              <MapPin size={13} className="form-label-icon" />
+              Номер аудитории
+            </label>
+            <input
+              id="field-room"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              className="form-input"
+              value={room}
+              onChange={(e) => setRoom(e.target.value.replace(/\D/g, ''))}
+              placeholder="Например, 305"
+            />
+          </div>
 
-        <div className="form-group">
-          <label className="form-label">
-            <MapPin size={14} style={{ display: 'inline', marginRight: '4px' }} />
-            Номер аудитории / помещения
-          </label>
-          <input
-            type="number"
-            className="form-input"
-            value={room}
-            min={1}
-            max={999}
-            onChange={(e) => setRoom(e.target.value)}
-            required
-          />
-        </div>
+          <div className="form-group">
+            <label htmlFor="field-date" className="form-label">
+              <Calendar size={13} className="form-label-icon" />
+              Дата и время
+            </label>
+            <input
+              id="field-date"
+              type="datetime-local"
+              className="form-input"
+              min={minDateTime}
+              value={bookingDate}
+              onChange={(e) => setBookingDate(e.target.value)}
+              required
+            />
+          </div>
 
-        <div className="form-group">
-          <label className="form-label">
-            <Calendar size={14} style={{ display: 'inline', marginRight: '4px' }} />
-            Дата и время бронирования
-          </label>
-          <input
-            type="datetime-local"
-            className="form-input"
-            min={getMinDateTime()}
-            value={bookingDate}
-            onChange={(e) => setBookingDate(e.target.value)}
-            required
-          />
-        </div>
+          <div className="modal-actions">
+            <button
+              className="btn btn-primary"
+              disabled={loading}
+              onClick={() => handleSubmit('direct')}
+            >
+              <Send size={15} />
+              {loading ? 'Создание...' : 'Забронировать сразу'}
+            </button>
 
-        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.75rem', flexDirection: 'column' }}>
-          <button
-            className="btn btn-primary"
-            disabled={loading}
-            onClick={() => handleSubmit('direct')}
-          >
-            <Send size={16} />
-            {loading ? 'Создание...' : 'Забронировать сразу'}
-          </button>
-
-          <button
-            className="btn btn-outline"
-            disabled={loading}
-            onClick={() => handleSubmit('basket')}
-          >
-            <ShoppingCart size={16} />
-            Отложить в корзину (резерв на 1 мин)
-          </button>
+            <button
+              className="btn btn-outline"
+              disabled={loading}
+              onClick={() => handleSubmit('basket')}
+            >
+              <ShoppingCart size={15} />
+              В корзину (резерв 1 мин)
+            </button>
+          </div>
         </div>
       </div>
     </div>

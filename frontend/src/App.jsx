@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Navbar } from './components/Navbar';
 import { ServicesCatalog } from './components/ServicesCatalog';
 import { Basket } from './components/Basket';
@@ -25,7 +25,7 @@ export default function App() {
     role: 'student'
   });
 
-  const [activeTab, setActiveTab] = useState('catalog'); // 'catalog' | 'basket' | 'bookings'
+  const [activeTab, setActiveTab] = useState('catalog');
 
   // Data states
   const [services, setServices] = useState([]);
@@ -33,35 +33,55 @@ export default function App() {
   const [bookings, setBookings] = useState([]);
   const [statusFilter, setStatusFilter] = useState('NEW');
 
+  // Separate loading states
+  const [servicesLoading, setServicesLoading] = useState(false);
+  const [bookingsLoading, setBookingsLoading] = useState(false);
+
   // UI states
-  const [loading, setLoading] = useState(false);
   const [modalService, setModalService] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toasts, setToasts] = useState([]);
+  const toastTimersRef = useRef(new Map());
 
-  // Toast helper
-  const addToast = (title, message, type = 'success') => {
+  // Toast helper with cleanup
+  const addToast = useCallback((title, message, type = 'success') => {
     const id = Date.now() + Math.random();
     setToasts((prev) => [...prev, { id, title, message, type }]);
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
+      toastTimersRef.current.delete(id);
     }, 4500);
-  };
+    toastTimersRef.current.set(id, timer);
+  }, []);
 
-  const removeToast = (id) => {
+  const removeToast = useCallback((id) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
+    const timer = toastTimersRef.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      toastTimersRef.current.delete(id);
+    }
+  }, []);
+
+  // Cleanup all toast timers on unmount
+  useEffect(() => {
+    const timers = toastTimersRef.current;
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer));
+      timers.clear();
+    };
+  }, []);
 
   // Load services once
   const loadServices = async () => {
-    setLoading(true);
+    setServicesLoading(true);
     try {
       const data = await fetchServices();
       setServices(data);
     } catch (err) {
       addToast('Ошибка', err.message, 'error');
     } finally {
-      setLoading(false);
+      setServicesLoading(false);
     }
   };
 
@@ -69,29 +89,40 @@ export default function App() {
   const loadBasket = async (uid = currentUser.id) => {
     try {
       const items = await fetchBasket(uid);
-      // Attach local received timestamp if missing so the 60s timer never starts at 0
-      const enriched = items.map((it) => ({
-        ...it,
-        _localReceivedAt: it._localReceivedAt || Date.now()
-      }));
-      setBasketItems(enriched);
+      setBasketItems((prev) => {
+        const existingTimestamps = new Map(prev.map((it) => [it.id, it._localReceivedAt]));
+        return items.map((it) => ({
+          ...it,
+          _localReceivedAt: existingTimestamps.get(it.id) || Date.now()
+        }));
+      });
     } catch (err) {
       addToast('Ошибка корзины', err.message, 'error');
     }
   };
 
-  // Load bookings
-  const loadBookings = async () => {
-    setLoading(true);
+  // Load bookings with AbortController support
+  const loadBookingsWithSignal = useCallback(async (status, userId, signal) => {
+    setBookingsLoading(true);
     try {
-      const data = await fetchBookings(statusFilter);
+      const data = await fetchBookings(status, userId, signal);
       setBookings(data);
     } catch (err) {
-      addToast('Ошибка заявок', err.message, 'error');
+      if (err.name !== 'AbortError') {
+        addToast('Ошибка заявок', err.message, 'error');
+      }
     } finally {
-      setLoading(false);
+      if (!signal || !signal.aborted) {
+        setBookingsLoading(false);
+      }
     }
-  };
+  }, [addToast]);
+
+  // Convenience wrapper for manual refresh (no abort needed)
+  const loadBookings = useCallback(() => {
+    const userId = currentUser.role !== 'admin' ? currentUser.id : null;
+    loadBookingsWithSignal(statusFilter, userId);
+  }, [currentUser, statusFilter, loadBookingsWithSignal]);
 
   // Initial load
   useEffect(() => {
@@ -106,12 +137,15 @@ export default function App() {
     }
   }, [currentUser.id]);
 
-  // When switching tabs or status filter
+  // When switching tabs or status filter — with AbortController
   useEffect(() => {
     if (activeTab === 'basket') {
       loadBasket(currentUser.id);
     } else if (activeTab === 'bookings') {
-      loadBookings();
+      const controller = new AbortController();
+      const userId = currentUser.role !== 'admin' ? currentUser.id : null;
+      loadBookingsWithSignal(statusFilter, userId, controller.signal);
+      return () => controller.abort();
     }
   }, [activeTab, statusFilter]);
 
@@ -120,7 +154,6 @@ export default function App() {
     try {
       const newItem = await addToBasket(payload);
       addToast('Корзина', 'Ресурс временно зарезервирован на 1 минуту', 'success');
-      // Append directly with local timer to avoid delay
       const tagged = {
         ...newItem,
         _localReceivedAt: Date.now()
@@ -147,7 +180,6 @@ export default function App() {
     try {
       const created = await checkoutBasketItem(itemId);
       addToast('Успешно', `Заявка #${created.id} отправлена на рассмотрение!`, 'success');
-      // Remove from cart locally
       setBasketItems((prev) => prev.filter((it) => it.id !== itemId));
     } catch (err) {
       addToast('Внимание', err.message, 'warning');
@@ -235,7 +267,7 @@ export default function App() {
         {activeTab === 'catalog' && (
           <ServicesCatalog
             services={services}
-            loading={loading}
+            loading={servicesLoading}
             onSelectService={(service) => {
               setModalService(service);
               setIsModalOpen(true);
@@ -261,12 +293,11 @@ export default function App() {
             services={services}
             onUpdateStatus={handleUpdateStatus}
             onDeleteBooking={handleDeleteBooking}
-            onRefresh={loadBookings}
             onOpenCreateModal={() => {
               setModalService(services[0] || null);
               setIsModalOpen(true);
             }}
-            loading={loading}
+            loading={bookingsLoading}
           />
         )}
       </main>

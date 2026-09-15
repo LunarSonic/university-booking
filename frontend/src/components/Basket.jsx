@@ -4,13 +4,13 @@ import { ShoppingCart, Clock, Send, Trash2 } from 'lucide-react';
 export function Basket({ items, services, onCheckout, onDelete }) {
   const [now, setNow] = useState(Date.now());
 
-  // Timer ticker every second
   useEffect(() => {
+    if (items.length === 0) return;
     const timer = setInterval(() => {
       setNow(Date.now());
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [items.length]);
 
   const getServiceName = (serviceId) => {
     if (!serviceId) return 'Университетский ресурс';
@@ -19,13 +19,9 @@ export function Basket({ items, services, onCheckout, onDelete }) {
   };
 
   const calculateTtl = (item) => {
-    // Use local received timestamp so clock desync between Mac and Docker never causes 0s
     const startTime = item._localReceivedAt || (item.addedAt ? new Date(item.addedAt).getTime() : now);
-    
-    // Check if startTime is in the future or corrupted
-    const validStartTime = Math.min(startTime, now);
-    const elapsedSeconds = Math.floor((now - validStartTime) / 1000);
-    const ttlTotal = 60; // 60 seconds
+    const elapsedSeconds = Math.floor((now - Math.min(startTime, now)) / 1000);
+    const ttlTotal = 60;
     const remaining = Math.max(0, ttlTotal - elapsedSeconds);
     const percent = Math.min(100, Math.max(0, (remaining / ttlTotal) * 100));
 
@@ -36,46 +32,47 @@ export function Basket({ items, services, onCheckout, onDelete }) {
     };
   };
 
+  const getTtlBarColor = (percent, expired) => {
+    if (expired || percent < 25) return 'var(--accent-danger)';
+    if (percent < 50) return 'var(--accent-warning)';
+    return 'var(--accent-success)';
+  };
+
   return (
     <div>
       <div className="section-header">
-        <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Корзина предварительного бронирования</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
-            Выбранные ресурсы временно закреплены за вами на 1 минуту. Нажмите «Подать заявку», пока действует резерв.
-          </p>
-        </div>
+        <h2 className="section-title">Корзина</h2>
+        <p className="section-subtitle">
+          Выбранные ресурсы закреплены на 1 минуту. Подайте заявку, пока действует резерв.
+        </p>
       </div>
 
       {items.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '3rem 1rem', background: 'var(--bg-card)', borderRadius: '0.85rem', border: '1px solid var(--border-color)' }}>
-          <ShoppingCart size={48} color="#6b7280" style={{ margin: '0 auto 1rem auto' }} />
-          <h3 style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Ваша корзина пуста</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
-            Перейдите во вкладку «Каталог услуг», чтобы выбрать аудиторию или услугу.
-          </p>
+        <div className="empty-state">
+          <ShoppingCart size={36} color="var(--text-muted)" className="empty-state-icon" />
+          <h3>Корзина пуста</h3>
+          <p>Выберите услугу в каталоге, чтобы добавить её сюда.</p>
         </div>
       ) : (
         items.map((item) => {
           const { seconds, percent, expired } = calculateTtl(item);
           return (
-            <div key={item.id} className="basket-item-card" style={{ borderColor: expired ? 'rgba(239, 68, 68, 0.4)' : 'var(--border-color)' }}>
+            <div key={item.id} className={`basket-item-card ${expired ? 'basket-item-expired' : ''}`}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+                <div className="basket-item-name">
                   {getServiceName(item.serviceId)}
                 </div>
-
-                <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                  Аудитория: <b>№{item.room}</b> • Дата брони: <b>{new Date(item.bookingDate).toLocaleString('ru-RU')}</b>
+                <div className="basket-item-detail">
+                  Аудитория №{item.room} · {new Date(item.bookingDate).toLocaleString('ru-RU')}
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+              <div className="basket-item-right">
                 <div className="ttl-box">
                   <div className="ttl-text">
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: expired ? '#ef4444' : '#f59e0b' }}>
-                      <Clock size={14} />
-                      {expired ? 'Резерв истёк' : `Резерв: ${seconds} сек`}
+                    <span className={`ttl-label ${expired ? 'ttl-label-expired' : 'ttl-label-active'}`}>
+                      <Clock size={13} />
+                      {expired ? 'Истёк' : `${seconds} сек`}
                     </span>
                   </div>
                   <div className="ttl-bar-bg">
@@ -83,30 +80,29 @@ export function Basket({ items, services, onCheckout, onDelete }) {
                       className="ttl-bar-fill"
                       style={{
                         width: `${percent}%`,
-                        background: expired ? '#ef4444' : percent < 25 ? '#ef4444' : percent < 50 ? '#f59e0b' : '#10b981'
+                        background: getTtlBarColor(percent, expired)
                       }}
                     />
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div className="basket-btn-group">
                   <button
                     className={`btn ${expired ? 'btn-outline' : 'btn-primary'} btn-sm`}
                     onClick={() => onCheckout(item.id)}
                     disabled={expired}
-                    title={expired ? 'Время вышло' : 'Отправить заявку на рассмотрение'}
+                    title={expired ? 'Время вышло' : 'Отправить заявку'}
                   >
-                    <Send size={14} />
+                    <Send size={13} />
                     Подать заявку
                   </button>
 
                   <button
                     className="btn btn-outline btn-sm"
-                    style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
                     onClick={() => onDelete(item.id)}
-                    title="Удалить из корзины"
+                    title="Удалить"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={13} />
                   </button>
                 </div>
               </div>

@@ -5,21 +5,26 @@ export function Toast({ toasts, onDismiss }) {
   if (!toasts || toasts.length === 0) return null;
 
   return (
-    <div className="toast-container">
+    <div className="toast-container" aria-live="polite" role="region" aria-label="Уведомления">
       {toasts.map((toast) => (
         <div
           key={toast.id}
           className={`toast toast-${toast.type}`}
-          onClick={() => onDismiss(toast.id)}
-          style={{ cursor: 'pointer' }}
         >
-          {toast.type === 'success' && <CheckCircle2 size={20} color="#10b981" />}
-          {toast.type === 'warning' && <AlertTriangle size={20} color="#f59e0b" />}
-          {toast.type === 'error' && <XCircle size={20} color="#ef4444" />}
-          <div>
-            <div style={{ fontWeight: 600 }}>{toast.title}</div>
-            <div style={{ color: '#9ca3af', fontSize: '0.8rem' }}>{toast.message}</div>
+          {toast.type === 'success' && <CheckCircle2 size={18} color="var(--accent-success)" />}
+          {toast.type === 'warning' && <AlertTriangle size={18} color="var(--accent-warning)" />}
+          {toast.type === 'error' && <XCircle size={18} color="var(--accent-danger)" />}
+          <div className="toast-content">
+            <div className="toast-title">{toast.title}</div>
+            <div className="toast-message">{toast.message}</div>
           </div>
+          <button
+            onClick={() => onDismiss(toast.id)}
+            className="toast-close"
+            aria-label="Закрыть уведомление"
+          >
+            ✕
+          </button>
         </div>
       ))}
     </div>

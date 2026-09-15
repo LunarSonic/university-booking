@@ -1,4 +1,4 @@
-const API_BASE = '';
+const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 export async function fetchServices() {
   const response = await fetch(`${API_BASE}/services`);
@@ -54,6 +54,12 @@ export async function deleteBasketItem(id) {
     method: 'DELETE'
   });
   if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Позиция уже удалена или истекла.');
+    }
+    if (response.status === 429) {
+      throw new Error('Слишком много запросов. Пожалуйста, подождите минуту.');
+    }
     throw new Error('Не удалось удалить позицию из корзины');
   }
 }
@@ -79,8 +85,10 @@ export async function checkoutBasketItem(id) {
   return await response.json();
 }
 
-export async function fetchBookings(status = 'NEW') {
-  const response = await fetch(`${API_BASE}/bookings?status=${status}`);
+export async function fetchBookings(status = 'NEW', userId = null, signal) {
+  const params = new URLSearchParams({ status });
+  if (userId) params.append('userId', userId);
+  const response = await fetch(`${API_BASE}/bookings?${params}`, { signal });
   if (!response.ok) {
     if (response.status === 429) {
       throw new Error('Слишком много запросов. Пожалуйста, подождите минуту.');
@@ -108,6 +116,12 @@ export async function deleteBooking(id) {
     method: 'DELETE'
   });
   if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Заявка не найдена или уже удалена.');
+    }
+    if (response.status === 429) {
+      throw new Error('Слишком много запросов. Пожалуйста, подождите минуту.');
+    }
     throw new Error('Не удалось удалить заявку');
   }
 }

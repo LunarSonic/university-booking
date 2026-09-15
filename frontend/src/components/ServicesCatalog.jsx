@@ -4,24 +4,29 @@ import { BookOpen, Presentation, Building, UserCheck, CalendarPlus } from 'lucid
 export function ServicesCatalog({ services, loading, onSelectService }) {
   const getIcon = (id) => {
     switch (id) {
-      case 1: return <BookOpen size={24} />;
-      case 2: return <Presentation size={24} />;
-      case 3: return <Building size={24} />;
-      case 4: return <UserCheck size={24} />;
-      default: return <BookOpen size={24} />;
+      case 1: return <BookOpen size={22} />;
+      case 2: return <Presentation size={22} />;
+      case 3: return <Building size={22} />;
+      case 4: return <UserCheck size={22} />;
+      default: return <BookOpen size={22} />;
     }
   };
 
   return (
     <div>
       <div className="section-header">
-        <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Доступные услуги и ресурсы</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
-            Выберите нужный ресурс для бронирования аудитории, оборудования или консультации
-          </p>
-        </div>
+        <h2 className="section-title">Доступные услуги</h2>
+        <p className="section-subtitle">
+          Бронирование аудиторий, оборудования и консультаций
+        </p>
       </div>
+
+      {loading && services.length === 0 && (
+        <div className="empty-state">
+          <h3>Загрузка услуг...</h3>
+          <p>Пожалуйста, подождите</p>
+        </div>
+      )}
 
       <div className="services-grid">
         {services.map((service) => (
@@ -42,7 +47,7 @@ export function ServicesCatalog({ services, loading, onSelectService }) {
                 style={{ width: '100%' }}
                 onClick={() => onSelectService(service)}
               >
-                <CalendarPlus size={16} />
+                <CalendarPlus size={15} />
                 Забронировать
               </button>
             </div>
