@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: university-booking
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5434/university_booking}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+basket:
+  ttl-seconds: ${BASKET_TTL_SECONDS:60}
+
+rate-limit:
+  max-requests: ${RATE_LIMIT_MAX_REQUESTS:30}
+  window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}
