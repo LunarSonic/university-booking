@@ -17,6 +17,10 @@ spring:
       hibernate:
         format_sql: true
 
+firebase:
+  project-id: ${FIREBASE_PROJECT_ID:university-booking}
+  credentials-path: ${FIREBASE_CREDENTIALS:}
+
 basket:
   ttl-seconds: ${BASKET_TTL_SECONDS:60}
 
