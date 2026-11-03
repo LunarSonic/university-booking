@@ -46,4 +46,10 @@ public class GlobalExceptionHandler {
     public Map<String, String> handleIllegalArgument(IllegalArgumentException e) {
         return Map.of("error", e.getMessage());
     }
+
+    @ExceptionHandler(RuntimeException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public Map<String, String> handleRuntimeException(RuntimeException e) {
+        return Map.of("error", "Внутренняя ошибка сервера: " + e.getMessage());
+    }
 }

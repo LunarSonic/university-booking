@@ -3,14 +3,13 @@ package ru.universitybooking.service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import ru.universitybooking.dto.BasketItemRequest;
 import ru.universitybooking.dto.BasketItemResponse;
 import ru.universitybooking.dto.BookingDto;
 import ru.universitybooking.entity.BasketItem;
 import ru.universitybooking.exception.BasketItemNotFoundException;
 import ru.universitybooking.repository.BasketRepo;
-import ru.universitybooking.repository.UniversityServiceRepo;
+import ru.universitybooking.store.UniversityServiceStore;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,20 +20,23 @@ public class BasketService {
     private final BasketRepo basketRepo;
     private final StringRedisTemplate stringRedisTemplate;
     private final BookingService bookingService;
-    private final UniversityServiceRepo universityServiceRepo;
+    private final UniversityServiceStore universityServiceStore;
 
     @Value("${basket.ttl-seconds}")
     private Long ttlSeconds;
 
-    public BasketService(BasketRepo basketRepo, StringRedisTemplate stringRedisTemplate, BookingService bookingService, UniversityServiceRepo universityServiceRepo) {
+    public BasketService(BasketRepo basketRepo,
+                         StringRedisTemplate stringRedisTemplate,
+                         BookingService bookingService,
+                         UniversityServiceStore universityServiceStore) {
         this.basketRepo = basketRepo;
         this.stringRedisTemplate = stringRedisTemplate;
         this.bookingService = bookingService;
-        this.universityServiceRepo = universityServiceRepo;
+        this.universityServiceStore = universityServiceStore;
     }
 
     public BasketItemResponse addItem(BasketItemRequest dto) {
-        if (!universityServiceRepo.existsById(dto.serviceId())) {
+        if (universityServiceStore.findById(dto.serviceId()).isEmpty()) {
             throw new IllegalArgumentException("Услуга с id " + dto.serviceId() + " не найдена");
         }
 
@@ -69,13 +71,18 @@ public class BasketService {
                 .toList();
     }
 
-    @Transactional
     public BookingDto checkout(Long basketItemId) {
         BasketItem item = basketRepo.findById(basketItemId)
-                .orElseThrow(() -> new BasketItemNotFoundException("Cannot find basket item with id " + basketItemId));
-        basketRepo.deleteById(basketItemId);
-        BookingDto bookingDto = new BookingDto(null, item.getUserId(), item.getServiceId(), item.getRoom(), item.getBookingDate(), null, null);
+                .orElseThrow(() -> new BasketItemNotFoundException(
+                        "Элемент корзины с id " + basketItemId + " не найден"));
+
+        BookingDto bookingDto = new BookingDto(
+                null, item.getUserId(), item.getServiceId(),
+                item.getRoom(), item.getBookingDate(), null, null);
         BookingDto created = bookingService.createBooking(bookingDto);
+
+        basketRepo.deleteById(basketItemId);
+
         return created;
     }
 

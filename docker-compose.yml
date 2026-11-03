@@ -1,4 +1,15 @@
 services:
+  firestore-emulator:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    command: gcloud emulators firestore start --host-port=0.0.0.0:8080
+    ports:
+      - "8079:8080"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8080"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   app:
     build: ./backend
     ports:
@@ -8,16 +19,16 @@ services:
         condition: service_healthy
       db:
         condition: service_healthy
+      firestore-emulator:
+        condition: service_healthy
     environment:
       SPRING_DATA_REDIS_HOST: redis
       BASKET_TTL_SECONDS: ${BASKET_TTL_SECONDS:-60}
       SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
-      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
-      FIREBASE_CREDENTIALS: /secrets/firebase-key.json
-    volumes:
-      - ./secrets/firebase-key.json:/secrets/firebase-key.json:ro
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-university-booking-demo}
+      FIRESTORE_EMULATOR_HOST: firestore-emulator:8080
 
   frontend:
     build: ./frontend

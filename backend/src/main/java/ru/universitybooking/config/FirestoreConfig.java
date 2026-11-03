@@ -18,19 +18,29 @@ public class FirestoreConfig {
     @Bean
     public FirebaseApp firebaseApp(
             @Value("${firebase.project-id}") String projectId,
-            @Value("${firebase.credentials-path}") String credentialsPath)  {
+            @Value("${firebase.credentials-path}") String credentialsPath) {
         if (!FirebaseApp.getApps().isEmpty()) {
             return FirebaseApp.getInstance();
         }
+
+        boolean emulatorMode = System.getenv("FIRESTORE_EMULATOR_HOST") != null;
+
         GoogleCredentials credentials;
-        if (credentialsPath != null && !credentialsPath.isBlank()) {
+        if (emulatorMode) {
+            try {
+                credentials = GoogleCredentials.getApplicationDefault();
+            } catch (IOException e) {
+                credentials = GoogleCredentials.newBuilder().build();
+            }
+        } else if (credentialsPath != null && !credentialsPath.isBlank()) {
             try (var in = new FileInputStream(credentialsPath)) {
                 credentials = GoogleCredentials.fromStream(in);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw new RuntimeException("Не удалось прочитать firebase credentials: " + credentialsPath, e);
             }
         } else {
-            throw new IllegalStateException("Задайте FIREBASE_CREDENTIALS");
+            throw new IllegalStateException(
+                "Задайте FIREBASE_CREDENTIALS или FIRESTORE_EMULATOR_HOST для локального эмулятора");
         }
         return FirebaseApp.initializeApp(FirebaseOptions.builder()
                 .setCredentials(credentials)

@@ -18,7 +18,7 @@ spring:
         format_sql: true
 
 firebase:
-  project-id: ${FIREBASE_PROJECT_ID:university-booking}
+  project-id: ${FIREBASE_PROJECT_ID:university-booking-demo}
   credentials-path: ${FIREBASE_CREDENTIALS:}
 
 basket:
@@ -27,3 +27,17 @@ basket:
 rate-limit:
   max-requests: ${RATE_LIMIT_MAX_REQUESTS:30}
   window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: migration
+  main:
+    web-application-type: none
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+migration:
+  dry-run: ${MIGRATION_DRY_RUN:false}

@@ -1,6 +1,7 @@
 package ru.universitybooking.controller;
 
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import ru.universitybooking.dto.BasketItemRequest;
@@ -12,12 +13,9 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/basket")
+@RequiredArgsConstructor
 public class BasketController {
     private final BasketService basketService;
-
-    public BasketController(BasketService basketService) {
-        this.basketService = basketService;
-    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

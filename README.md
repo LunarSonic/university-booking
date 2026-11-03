@@ -9,6 +9,7 @@
 
 REST API для управления заявками на бронирование университетских услуг и ресурсов.
 
+# Лабораторная работа №1
 ## Задание
 
 | Параметр           | Значение                    |
@@ -151,3 +152,106 @@ curl -X POST http://localhost:8080/basket/1/checkout
 | `BasketItem:userId:{userId}` | Set       | Вторичный индекс: ID элементов корзины по userId  |
 | `rate_limiter:{ip}`          | String    | Счётчик запросов для rate limiter                 |
 | `services::SimpleKey []`     | String    | Кэш списка услуг                                  |
+
+
+# Лабораторная работа №2 
+
+Основные объекты перенесены из PostgreSQL в Firestore. CRUD API и Redis-хранилище сохранены без изменений.
+
+## Что реализовано 
+
+| Компонент                  | Описание                                                                                                  |
+|----------------------------|-----------------------------------------------------------------------------------------------------------|
+| `FirestoreConfig`          | Подключение к Firestore: эмулятор через `FIRESTORE_EMULATOR_HOST` или облако через credentials            |
+| Модели                     | `BookingDocument`, `BookingStatusDocument`, `BookingDetails`, `UniversityServiceDocument`, `ServiceUsage` |
+| Интерфейсы                 | `BookingStore`, `UniversityServiceStore`                                                                  |
+| Firestore-реализации       | `FirestoreBookingStore`, `FirestoreUniversityServiceStore`, `FirestoreIdGenerator`                        |
+| `BookingMapper`            | Преобразование `BookingDocument` ↔ `BookingDto`                                                           |
+| `BookingService`           | Создание и удаление заявок через Firestore-транзакцию с обновлением счётчика услуги                       |
+| `BasketService`            | Использует `UniversityServiceStore` вместо JPA                                                            |
+| `UniversityCatalogService` | Читает каталог из Firestore, кэширует в Redis                                                             |
+| `DataInitializer`          | Заполняет коллекцию `services` при старте (отключён в профиле `migration`)                                |
+| `MigrationRunner`          | Перенос данных PostgreSQL → Firestore (профиль `migration`)                                               |
+| `SchemaV1ToV2Migrator`     | Преобразование строкового статуса во вложенный объект                                                     |
+
+## Структура документа заявки
+
+**v1** — после переноса из PostgreSQL:
+```json
+{
+  "id": 1,
+  "userId": 1,
+  "serviceId": 2,
+  "room": 305,
+  "statusCode": "APPROVED",
+  "status": null,
+  "schemaVersion": 1
+}
+```
+
+**v2** — после миграции схемы:
+```json
+{
+  "id": 1,
+  "userId": 1,
+  "serviceId": 2,
+  "room": 305,
+  "statusCode": null,
+  "status": { "code": "APPROVED", "changedAt": null },
+  "details": { "participants": 20, "needsProjector": true, "comment": "..." },
+  "schemaVersion": 2
+}
+```
+
+## Транзакционные обновления
+
+При создании заявки Firestore-транзакция атомарно:
+1. Сохраняет документ в коллекции `bookings`
+2. Увеличивает `usage.bookingsCount` связанной услуги в `services`
+
+При удалении — уменьшает счётчик (минимум 0).
+
+## Запуск с Firestore Emulator
+
+```bash
+docker compose up -d --build
+```
+
+Добавлены сервисы:
+
+| Сервис             | URL                   |
+|:-------------------|:----------------------|
+| Firestore Emulator | http://localhost:8079 |
+
+## Запуск с реальным Firestore
+
+```bash
+# Положите ключ сервисного аккаунта в secrets/firebase-key.json
+docker compose -f docker-compose.cloud.yml up -d --build
+```
+
+## Миграция
+
+Переносит данные из PostgreSQL в Firestore, затем обновляет схему документов с v1 на v2. Миграция идемпотентна: повторный запуск не перезаписывает уже перенесённые документы.
+
+```bash
+# 1. Создайте файл с переменными окружения (если ещё нет)
+cp .env.example .env
+# Заполните .env своими значениями
+
+# 2. Запустите миграцию
+./backend/scripts/migrate.sh
+```
+
+Просмотр данных в эмуляторе:
+```bash
+./backend/scripts/firestore.sh bookings      # вся коллекция
+./backend/scripts/firestore.sh bookings 1    # конкретный документ
+./backend/scripts/firestore.sh services
+```
+
+Очистка Firestore:
+```bash
+curl -X DELETE "http://localhost:8079/emulator/v1/projects/<project-id>/databases/(default)/documents"
+```
+
