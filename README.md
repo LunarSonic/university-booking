@@ -255,3 +255,8 @@ cp .env.example .env
 curl -X DELETE "http://localhost:8079/emulator/v1/projects/<project-id>/databases/(default)/documents"
 ```
 
+
+
+## Дополнение: завершение лабораторной №2
+
+Актуальные операции, проверенные сценарии и оставшаяся облачная демонстрация описаны в [docs/lab2-completion.md](docs/lab2-completion.md).

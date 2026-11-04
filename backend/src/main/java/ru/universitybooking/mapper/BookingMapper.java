@@ -2,8 +2,10 @@ package ru.universitybooking.mapper;
 
 import com.google.cloud.Timestamp;
 import org.springframework.stereotype.Component;
+import ru.universitybooking.document.BookingDetails;
 import ru.universitybooking.document.BookingDocument;
 import ru.universitybooking.document.BookingStatusDocument;
+import ru.universitybooking.dto.BookingDetailsDto;
 import ru.universitybooking.dto.BookingDto;
 import ru.universitybooking.entity.StatusRequest;
 
@@ -23,7 +25,11 @@ public class BookingMapper {
                 toLocalDateTime(doc.getBookingDate()),
                 doc.getStatus() != null ? StatusRequest.valueOf(doc.getStatus().getCode())
                         : doc.getStatusCode() != null ? StatusRequest.valueOf(doc.getStatusCode()) : StatusRequest.NEW,
-                toLocalDateTime(doc.getCreateDate())
+                toLocalDateTime(doc.getCreateDate()),
+                doc.getDetails() == null ? null : new BookingDetailsDto(
+                        doc.getDetails().getParticipants(),
+                        doc.getDetails().getNeedsProjector(),
+                        doc.getDetails().getComment())
         );
     }
 
@@ -41,6 +47,11 @@ public class BookingMapper {
                         .changedAt(Timestamp.now())
                         .build())
                 .revision(1)
+                .details(dto.details() == null ? null : BookingDetails.builder()
+                        .participants(dto.details().participants())
+                        .needsProjector(dto.details().needsProjector())
+                        .comment(dto.details().comment())
+                        .build())
                 .schemaVersion(2)
                 .build();
     }

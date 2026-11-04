@@ -52,4 +52,18 @@ public class GlobalExceptionHandler {
     public Map<String, String> handleRuntimeException(RuntimeException e) {
         return Map.of("error", "Внутренняя ошибка сервера: " + e.getMessage());
     }
+
+    @ExceptionHandler({org.springframework.http.converter.HttpMessageNotReadableException.class,
+            org.springframework.web.bind.MissingServletRequestParameterException.class})
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String,String> invalidRequest(Exception e) {
+        return Map.of("error", "Некорректное тело запроса или отсутствует обязательный параметр");
+    }
+
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public org.springframework.http.ResponseEntity<Map<String,String>> statusError(
+            org.springframework.web.server.ResponseStatusException e) {
+        return org.springframework.http.ResponseEntity.status(e.getStatusCode())
+                .body(Map.of("error", e.getReason() == null ? "Ошибка запроса" : e.getReason()));
+    }
 }

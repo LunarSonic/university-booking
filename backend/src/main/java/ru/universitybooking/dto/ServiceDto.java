@@ -1,0 +1,12 @@
+package ru.universitybooking.dto;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ServiceDto {
+    private Long id;
+    private String name;
+    private String description;
+}

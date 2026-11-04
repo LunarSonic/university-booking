@@ -45,3 +45,7 @@ secrets/
 
 .DS_Store
 
+
+# Local verification dependencies and emulator logs
+tests/rules/node_modules/
+*-debug.log

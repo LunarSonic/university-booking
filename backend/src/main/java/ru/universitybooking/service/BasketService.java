@@ -72,6 +72,11 @@ public class BasketService {
     }
 
     public BookingDto checkout(Long basketItemId) {
+        var completed = bookingService.completedCheckout(basketItemId);
+        if (completed.isPresent()) {
+            basketRepo.deleteById(basketItemId);
+            return completed.get();
+        }
         BasketItem item = basketRepo.findById(basketItemId)
                 .orElseThrow(() -> new BasketItemNotFoundException(
                         "Элемент корзины с id " + basketItemId + " не найден"));
@@ -79,7 +84,7 @@ public class BasketService {
         BookingDto bookingDto = new BookingDto(
                 null, item.getUserId(), item.getServiceId(),
                 item.getRoom(), item.getBookingDate(), null, null);
-        BookingDto created = bookingService.createBooking(bookingDto);
+        BookingDto created = bookingService.checkout(basketItemId, bookingDto);
 
         basketRepo.deleteById(basketItemId);
 

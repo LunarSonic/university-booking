@@ -26,6 +26,8 @@ import java.time.ZoneOffset;
 @RequiredArgsConstructor
 public class MigrationRunner implements CommandLineRunner {
 
+    private final com.google.cloud.firestore.Firestore firestore;
+    private final ru.universitybooking.service.FirestoreOperations operations;
     private final BookingRepo bookingRepo;
     private final UniversityServiceRepo universityServiceRepo;
     private final BookingStore bookingStore;
@@ -43,6 +45,7 @@ public class MigrationRunner implements CommandLineRunner {
         migrateBookings();
         log.info("Firestore v1 -> v2");
         schemaV1ToV2Migrator.migrate();
+        if (!dryRun) rebuildCounters();
         log.info("Миграция завершена");
     }
 
@@ -78,7 +81,7 @@ public class MigrationRunner implements CommandLineRunner {
 
         for (BookingRequest b : all) {
             try {
-                if (bookingStore.findById(b.getId()).isPresent()) {
+                if (firestore.collection("bookings").document(b.getId().toString()).get().get().exists()) {
                     log.info("[bookings] пропущена id={}", b.getId());
                     skipped++;
                     continue;
@@ -107,11 +110,42 @@ public class MigrationRunner implements CommandLineRunner {
         }
 
         log.info("[bookings] scanned={} migrated={} skipped={} failed={}", all.size(), migrated, skipped, failed);
+        if (failed > 0) throw new IllegalStateException("Импорт завершился с ошибками: " + failed);
     }
 
     private Timestamp toTimestamp(LocalDateTime dt) {
         if (dt == null) return null;
         var instant = dt.toInstant(ZoneOffset.UTC);
         return Timestamp.ofTimeSecondsAndNanos(instant.getEpochSecond(), instant.getNano());
+    }
+
+    // Run with application writes stopped. Reassignment is intentionally idempotent.
+    private void rebuildCounters() {
+        try {
+            var bookings = firestore.collection("bookings").get().get().getDocuments();
+            java.util.Map<Long,Long> counts = new java.util.HashMap<>();
+            long maxId = 0;
+            for (var booking : bookings) {
+                maxId = Math.max(maxId, Long.parseLong(booking.getId()));
+                counts.merge(booking.getLong("serviceId"), 1L, Long::sum);
+            }
+            var services = firestore.collection("services").get().get().getDocuments();
+            var serviceIds = services.stream().map(s -> Long.parseLong(s.getId())).collect(java.util.stream.Collectors.toSet());
+            if (!serviceIds.containsAll(counts.keySet())) throw new IllegalStateException("Есть заявки без услуги");
+            for (var service : services) {
+                service.getReference().update("usage.bookingsCount",
+                        counts.getOrDefault(Long.parseLong(service.getId()), 0L)).get();
+            }
+            final long highest = maxId;
+            operations.transaction(tx -> {
+                var ref = firestore.collection("counters").document("bookings");
+                var doc = tx.get(ref).get();
+                Long current = doc.exists() ? doc.getLong("lastId") : null;
+                tx.set(ref, java.util.Map.of("lastId", Math.max(highest, current == null ? 0L : current)));
+                return null;
+            });
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt(); throw new IllegalStateException(e);
+        } catch (java.util.concurrent.ExecutionException e) { throw new IllegalStateException(e); }
     }
 }
