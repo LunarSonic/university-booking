@@ -17,6 +17,10 @@ export default defineConfig({
       '/bookings': {
         target: 'http://localhost:8080',
         changeOrigin: true
+      },
+      '/analytics': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
       }
     }
   }

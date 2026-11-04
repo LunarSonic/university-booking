@@ -1,6 +1,7 @@
 package ru.universitybooking.migration;
 
 import com.google.cloud.Timestamp;
+import com.google.cloud.firestore.Firestore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,6 +15,7 @@ import ru.universitybooking.entity.BookingRequest;
 import ru.universitybooking.entity.UniversityService;
 import ru.universitybooking.repository.BookingRepo;
 import ru.universitybooking.repository.UniversityServiceRepo;
+import ru.universitybooking.service.FirestoreOperations;
 import ru.universitybooking.store.BookingStore;
 import ru.universitybooking.store.UniversityServiceStore;
 
@@ -26,8 +28,8 @@ import java.time.ZoneOffset;
 @RequiredArgsConstructor
 public class MigrationRunner implements CommandLineRunner {
 
-    private final com.google.cloud.firestore.Firestore firestore;
-    private final ru.universitybooking.service.FirestoreOperations operations;
+    private final Firestore firestore;
+    private final FirestoreOperations operations;
     private final BookingRepo bookingRepo;
     private final UniversityServiceRepo universityServiceRepo;
     private final BookingStore bookingStore;
@@ -40,7 +42,7 @@ public class MigrationRunner implements CommandLineRunner {
     @Override
     public void run(String... args) {
         log.info("Миграция запущена. dry-run={}", dryRun);
-        log.info("PostgreSQL → Firestore");
+        log.info("PostgreSQL -> Firestore");
         migrateServices();
         migrateBookings();
         log.info("Firestore v1 -> v2");
@@ -119,7 +121,7 @@ public class MigrationRunner implements CommandLineRunner {
         return Timestamp.ofTimeSecondsAndNanos(instant.getEpochSecond(), instant.getNano());
     }
 
-    // Run with application writes stopped. Reassignment is intentionally idempotent.
+
     private void rebuildCounters() {
         try {
             var bookings = firestore.collection("bookings").get().get().getDocuments();

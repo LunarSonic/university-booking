@@ -8,6 +8,7 @@ import ru.universitybooking.dto.ServiceDto;
 import ru.universitybooking.dto.ServiceUpdateRequest;
 import ru.universitybooking.store.UniversityServiceStore;
 import java.util.*;
+
 @Service
 @RequiredArgsConstructor
 public class UniversityCatalogService {
@@ -20,12 +21,13 @@ public class UniversityCatalogService {
                 .map(s -> new ServiceDto(s.getId(), s.getName(), s.getDescription()))
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
     }
-    // Eviction is after a successful Firestore commit; outside the retryable callback.
+
     @CacheEvict(value="services", allEntries=true)
     public ServiceDto update(Long id, ServiceUpdateRequest request) {
         return operations.transaction(tx -> {
             var ref = firestore.collection("services").document(id.toString());
-            if (!tx.get(ref).get().exists()) throw new IllegalArgumentException("Услуга не найдена");
+            if (!tx.get(ref).get().exists())
+                throw new IllegalArgumentException("Услуга не найдена");
             Map<String,Object> changes = new HashMap<>();
             changes.put("name", request.name());
             changes.put("description", request.description());

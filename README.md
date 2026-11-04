@@ -4,6 +4,7 @@
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1-6DB33F?logo=springboot&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
+![Firestore](https://img.shields.io/badge/Firestore-FFCA28?logo=firebase&logoColor=black)
 ![Gradle](https://img.shields.io/badge/Gradle-02303A?logo=gradle&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
 
@@ -23,40 +24,6 @@ REST API для управления заявками на бронирован�
 | Атомарный механизм | Rate limiter для REST API   |
 | Исследование       | Потеря временных ключей     |
 
-## Быстрый старт
-
-### Требования
-
-- [Docker](https://docs.docker.com/get-docker/)
-
-### Запуск
-
-```bash
-# 1. Клонируйте репозиторий
-git clone https://github.com/LunarSonic/university-booking.git
-cd university-booking
-
-# 2. Запустите 3 контейнера
-docker compose up -d --build
-```
-
-При первом запуске `DataInitializer` автоматически заполняет таблицу `services` начальными данными.
-
-### Сервисы
-
-| Сервис     | URL                   |
-|:-----------|:----------------------|
-| Приложение | http://localhost:8080 |
-| PostgreSQL | localhost:5434        |
-| Redis      | localhost:6379        |
-
-### Остановка
-
-```bash
-docker compose down       # данные сохраняются
-docker compose down -v    # с удалением volume
-```
-
 ## Архитектура хранения
 
 | Данные                            | Хранилище  | Назначение                                    |
@@ -64,7 +31,7 @@ docker compose down -v    # с удалением volume
 | Заявки (BookingRequest)           | PostgreSQL | Постоянное хранение с ACID-гарантиями         |
 | Каталог услуг (UniversityService) | PostgreSQL | Справочник услуг, инициализируется при старте |
 | Временная корзина (BasketItem)    | Redis      | Хранение с автоматическим TTL                 |
-| Кэш каталога услуг                | Redis      | Кэширование данных на 30 минут                |
+| Кэш каталога услуг                | Redis      | Кэширование данных (TTL настраивается, по умолчанию 60 с) |
 | Rate limiter                      | Redis      | Атомарный счётчик запросов                    |
 
 ## Основной сценарий
@@ -131,9 +98,9 @@ curl -X POST http://localhost:8080/basket/1/checkout
 
 ### Каталог услуг (`/services`)
 
-| Метод | URL         | Описание                            |
-|-------|-------------|-------------------------------------|
-| `GET` | `/services` | Список услуг (кэшируется на 30 мин) |
+| Метод  | URL         | Описание                                         |
+|--------|-------------|--------------------------------------------------|
+| `GET`  | `/services` | Список услуг (кэшируется, TTL 60 с по умолчанию) |
 
 Первый вызов загружает данные из PostgreSQL. Последующие отдаются мгновенно из кэша.
 
@@ -154,18 +121,29 @@ curl -X POST http://localhost:8080/basket/1/checkout
 | `services::SimpleKey []`     | String    | Кэш списка услуг                                  |
 
 
-# Лабораторная работа №2 
+# Лабораторная работа №2
+
+## Задание
+
+| Параметр              | Значение                                                |
+|-----------------------|---------------------------------------------------------|
+| Система               | Firestore                                               |
+| Вложенные данные      | Дополнительные характеристики заявки (`BookingDetails`) |
+| Связанная коллекция   | Справочник услуг (`services`)                           |
+| Индексируемый запрос  | Поиск по статусу и дате создания                        |
+| Аналитический запрос  | Количество изменений статусов по временным интервалам   |
+| Изменение структуры   | Преобразование строкового статуса во вложенный объект   |
 
 Основные объекты перенесены из PostgreSQL в Firestore. CRUD API и Redis-хранилище сохранены без изменений.
 
-## Что реализовано 
+## Что реализовано
 
 | Компонент                  | Описание                                                                                                  |
 |----------------------------|-----------------------------------------------------------------------------------------------------------|
 | `FirestoreConfig`          | Подключение к Firestore: эмулятор через `FIRESTORE_EMULATOR_HOST` или облако через credentials            |
 | Модели                     | `BookingDocument`, `BookingStatusDocument`, `BookingDetails`, `UniversityServiceDocument`, `ServiceUsage` |
 | Интерфейсы                 | `BookingStore`, `UniversityServiceStore`                                                                  |
-| Firestore-реализации       | `FirestoreBookingStore`, `FirestoreUniversityServiceStore`, `FirestoreIdGenerator`                        |
+| Firestore-реализации       | `FirestoreBookingStore`, `FirestoreUniversityServiceStore`                                                |
 | `BookingMapper`            | Преобразование `BookingDocument` ↔ `BookingDto`                                                           |
 | `BookingService`           | Создание и удаление заявок через Firestore-транзакцию с обновлением счётчика услуги                       |
 | `BasketService`            | Использует `UniversityServiceStore` вместо JPA                                                            |
@@ -203,34 +181,81 @@ curl -X POST http://localhost:8080/basket/1/checkout
 }
 ```
 
+## Коллекции Firestore
+
+| Коллекция              | Назначение                                               |
+|------------------------|----------------------------------------------------------|
+| `bookings`             | Основные заявки                                          |
+| `services`             | Справочник университетских услуг                         |
+| `counters/bookings`    | Атомарный счётчик для автоинкремента ID заявок           |
+| `checkouts/{basketId}` | Маркеры идемпотентности для оформления корзины           |
+| `bookingChangeDaily`   | Агрегат изменений статусов заявок по дням (аналитика)    |
+
 ## Транзакционные обновления
 
 При создании заявки Firestore-транзакция атомарно:
 1. Сохраняет документ в коллекции `bookings`
 2. Увеличивает `usage.bookingsCount` связанной услуги в `services`
 
-При удалении — уменьшает счётчик (минимум 0).
+При удалении — уменьшает счётчик (минимум 0). Оформление корзины идемпотентно: повторный вызов `POST /basket/{id}/checkout` возвращает ту же заявку. Конкурентные запросы создают ровно одну заявку.
 
-## Запуск с Firestore Emulator
+## Новые эндпоинты
+
+### Поиск заявок с курсорной пагинацией
+
+| Метод    | URL                         | Описание                              |
+|----------|-----------------------------|---------------------------------------|
+| `GET`    | `/bookings/search`          | Поиск заявок с фильтрами и пагинацией |
+| `PATCH`  | `/bookings/{id}/details`    | Обновить детали заявки                |
+| `PATCH`  | `/bookings/{id}/assignment` | Переназначить заявку на услугу        |
+
+Параметры `/bookings/search`:
+
+| Параметр         | Тип     | Описание                                      |
+|------------------|---------|-----------------------------------------------|
+| `status`         | String  | Статус заявки (`NEW`, `APPROVED`, `REJECTED`) |
+| `userId`         | Long    | Фильтр по пользователю                        |
+| `serviceId`      | Long    | Фильтр по услуге                              |
+| `needsProjector` | Boolean | Фильтр по наличию проектора                   |
+| `createdFrom`    | Instant | Начало диапазона дат создания                 |
+| `createdTo`      | Instant | Конец диапазона дат создания                  |
+| `cursor`         | String  | Непрозрачный курсор для следующей страницы    |
+| `limit`          | int     | Размер страницы (1–100, по умолчанию 20)      |
+| `direction`      | String  | `ASC` или `DESC` по дате создания             |
+
+Ответ содержит поле `nextCursor` — если оно заполнено, есть следующая страница. Курсор нельзя смешивать с другими фильтрами: при несовместимых параметрах возвращается `400`.
 
 ```bash
-docker compose up -d --build
+curl "http://localhost:8080/bookings/search?status=NEW&needsProjector=true&limit=5"
 ```
 
-Добавлены сервисы:
+### Аналитика
 
-| Сервис             | URL                   |
-|:-------------------|:----------------------|
-| Firestore Emulator | http://localhost:8079 |
-
-## Запуск с реальным Firestore
+| Метод | URL                                                   | Описание                                |
+|-------|-------------------------------------------------------|-----------------------------------------|
+| `GET` | `/analytics/booking-changes?from=&to=&interval=day`   | Количество изменений статусов по дням   |
 
 ```bash
-# Положите ключ сервисного аккаунта в secrets/firebase-key.json
-docker compose -f docker-compose.cloud.yml up -d --build
+curl "http://localhost:8080/analytics/booking-changes?from=2026-11-01&to=2026-11-05&interval=day"
 ```
 
-## Миграция
+### Управление услугами
+
+| Метод   | URL              | Описание        |
+|---------|------------------|-----------------|
+| `PATCH` | `/services/{id}` | Обновить услугу |
+
+```bash
+curl -X PATCH http://localhost:8080/services/2 \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Аудитория 305", "description": "Обновлённое описание", "active": true}'
+```
+
+## Индексы и правила Firestore
+
+Составные индексы описаны в `firestore.indexes.json` и покрывают все комбинации фильтров поиска (статус, userId, serviceId, needsProjector, диапазон дат). Правила безопасности описаны в `firestore.rules` — доступ к коллекциям разрешён только через backend-приложение.
+
+## Миграция PostgreSQL -> Firestore
 
 Переносит данные из PostgreSQL в Firestore, затем обновляет схему документов с v1 на v2. Миграция идемпотентна: повторный запуск не перезаписывает уже перенесённые документы.
 
@@ -243,7 +268,7 @@ cp .env.example .env
 ./backend/scripts/migrate.sh
 ```
 
-Просмотр данных в эмуляторе:
+Просмотр данных в эмуляторе через curl:
 ```bash
 ./backend/scripts/firestore.sh bookings      # вся коллекция
 ./backend/scripts/firestore.sh bookings 1    # конкретный документ
@@ -252,11 +277,108 @@ cp .env.example .env
 
 Очистка Firestore:
 ```bash
-curl -X DELETE "http://localhost:8079/emulator/v1/projects/<project-id>/databases/(default)/documents"
+curl -X DELETE "http://localhost:8079/emulator/v1/projects/university-booking-demo/databases/(default)/documents"
 ```
 
 
+# Быстрый старт
 
-## Дополнение: завершение лабораторной №2
+## Требования
 
-Актуальные операции, проверенные сценарии и оставшаяся облачная демонстрация описаны в [docs/lab2-completion.md](docs/lab2-completion.md).
+- [Docker](https://docs.docker.com/get-docker/)
+
+## Запуск с Firestore Emulator 
+
+```bash
+# 1. Клонируйте репозиторий
+git clone https://github.com/LunarSonic/university-booking.git
+cd university-booking
+
+# 2. Скопируйте файл переменных окружения
+cp .env.example .env
+
+# 3. Запустите все контейнеры
+docker compose up -d --build
+```
+
+При первом запуске `DataInitializer` автоматически заполняет коллекцию `services` начальными данными.
+
+### Сервисы
+
+| Сервис                   | URL                      |
+|:-------------------------|:-------------------------|
+| Приложение (API)         | http://localhost:8080    |
+| Frontend                 | http://localhost:3000    |
+| Firestore Emulator (API) | http://localhost:8079    |
+| PostgreSQL               | localhost:5434           |
+| Redis                    | localhost:6379           |
+
+### Остановка
+
+```bash
+docker compose down       # данные сохраняются
+docker compose down -v    # с удалением volumes
+```
+
+## Запуск с Firestore
+
+### 1. Создайте Firebase-проект
+
+1. Откройте [console.firebase.google.com](https://console.firebase.google.com)
+2. Нажмите **Add project** → введите имя (например `university-booking`) → подтвердите
+3. В левом меню: **Build → Firestore Database → Create database**
+4. Выберите регион и режим **Native mode** (не Datastore)
+
+### 2. Создайте сервисный аккаунт
+
+1. В Firebase Console: **Project settings (шестерёнка) → Service accounts**
+2. Нажмите **Generate new private key** → сохраните файл `firebase-key.json`
+3. Создайте папку `secrets/` в корне репозитория и положите туда ключ:
+```bash
+mkdir -p secrets
+cp ~/Downloads/firebase-key.json secrets/firebase-key.json
+```
+
+### 3. Задеплойте индексы и правила
+
+Установите Firebase CLI и авторизуйтесь:
+```bash
+npm install -g firebase-tools
+firebase login
+```
+
+Выберите свой проект и задеплойте:
+```bash
+firebase use --add   # выберите ваш проект из списка
+firebase deploy --only firestore
+```
+
+Это создаст составные индексы (`firestore.indexes.json`) и загрузит правила безопасности (`firestore.rules`).
+
+### 4. Настройте .env
+
+Скопируйте `.env.example` -> `.env` и заполните:
+```bash
+cp .env.example .env
+```
+
+Укажите значения:
+```env
+FIREBASE_PROJECT_ID=ваш-project-id   # из Firebase Console
+POSTGRES_PASSWORD=ваш-пароль
+SPRING_DATASOURCE_PASSWORD=ваш-пароль
+```
+
+### 5. Запустите приложение
+
+```bash
+docker compose -f docker-compose.cloud.yml up -d --build
+```
+
+| Сервис     | URL                   |
+|:-----------|:----------------------|
+| Приложение | http://localhost:8080 |
+| Frontend   | http://localhost:3000 |
+| PostgreSQL | localhost:5434        |
+| Redis      | localhost:6379        |
+

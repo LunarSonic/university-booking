@@ -4,10 +4,12 @@ import com.google.cloud.firestore.Transaction;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import java.util.concurrent.ExecutionException;
+
 @Component
 @RequiredArgsConstructor
 public class FirestoreOperations {
     private final Firestore firestore;
+
     public <T> T transaction(Transaction.Function<T> action) {
         try { return firestore.runTransaction(action).get(); }
         catch (InterruptedException e) {
@@ -17,6 +19,7 @@ public class FirestoreOperations {
             Throwable cause = e.getCause();
             while (cause != null) {
                 if (cause instanceof IllegalArgumentException error) throw error;
+                if (cause instanceof IllegalStateException error) throw error;
                 if (cause instanceof ru.universitybooking.exception.BookingNotFoundException error) throw error;
                 cause = cause.getCause();
             }

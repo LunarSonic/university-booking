@@ -5,6 +5,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import ru.universitybooking.dto.BookingAssignmentRequest;
+import ru.universitybooking.dto.BookingDetailsDto;
 import ru.universitybooking.dto.BookingDto;
 import ru.universitybooking.dto.BookingPage;
 import ru.universitybooking.dto.BookingSearchRequest;
@@ -73,13 +75,13 @@ public class BookingController {
 
     @PatchMapping("/{id}/details")
     public BookingDto updateDetails(@PathVariable Long id,
-            @RequestBody @Valid ru.universitybooking.dto.BookingDetailsDto details) {
+            @RequestBody @Valid BookingDetailsDto details) {
         return bookingService.updateDetails(id, details);
     }
 
     @PatchMapping("/{id}/assignment")
     public BookingDto assign(@PathVariable Long id,
-            @RequestBody @Valid ru.universitybooking.dto.BookingAssignmentRequest request) {
+            @RequestBody @Valid BookingAssignmentRequest request) {
         return bookingService.assign(id, request);
     }
 }

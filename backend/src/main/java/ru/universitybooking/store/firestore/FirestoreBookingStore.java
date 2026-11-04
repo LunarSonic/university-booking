@@ -55,7 +55,7 @@ public class FirestoreBookingStore implements BookingStore {
 
     @Override
     public List<BookingDocument> findByStatus(StatusRequest status) {
-        try{
+        try {
             return firestore.collection("bookings")
                     .whereEqualTo("status.code", status.name())
                     .get().get()
@@ -63,20 +63,17 @@ public class FirestoreBookingStore implements BookingStore {
                     .stream()
                     .map(doc -> doc.toObject(BookingDocument.class))
                     .toList();
-
-        }
-        catch (InterruptedException e){
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("Поиск заявок был прерван", e);
-        }
-        catch (ExecutionException e){
+        } catch (ExecutionException e) {
             throw new RuntimeException("Ошибка поиска заявок по статусу", e);
         }
     }
 
     @Override
-    public List<BookingDocument> findByStatusAndUserId(StatusRequest status,  Long userId) {
-        try{
+    public List<BookingDocument> findByStatusAndUserId(StatusRequest status, Long userId) {
+        try {
             return firestore.collection("bookings")
                     .whereEqualTo("status.code", status.name())
                     .whereEqualTo("userId", userId)
@@ -85,24 +82,20 @@ public class FirestoreBookingStore implements BookingStore {
                     .stream()
                     .map(doc -> doc.toObject(BookingDocument.class))
                     .toList();
-
-        }
-        catch (InterruptedException e){
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("Поиск заявок был прерван", e);
-        }
-        catch (ExecutionException e){
+        } catch (ExecutionException e) {
             throw new RuntimeException("Ошибка поиска заявок по статусу и пользователю", e);
         }
     }
 
     @Override
-    public BookingDocument save(BookingDocument bookingDocument) {
+    public void save(BookingDocument bookingDocument) {
         try {
             firestore.collection("bookings")
                     .document(String.valueOf(bookingDocument.getId()))
                     .set(bookingDocument).get();
-            return bookingDocument;
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException("Ошибка сохранения заявки id=" + bookingDocument.getId(), e);
         }

@@ -28,9 +28,11 @@ public class BookingService {
             var marker = tx.get(firestore.collection("checkouts").document(basketId.toString())).get();
             if (!marker.exists()) return Optional.empty();
             var booking = tx.get(firestore.collection("bookings")
-                    .document(marker.getLong("bookingId").toString())).get();
-            if (!booking.exists()) throw new IllegalArgumentException("Оформленная заявка уже удалена");
-            return Optional.of(mapper.toDto(booking.toObject(BookingDocument.class)));
+                    .document(Objects.requireNonNull(marker.getLong("bookingId")).toString())).get();
+            if (!booking.exists()) {
+                throw new IllegalArgumentException("Оформленная заявка уже удалена");
+            }
+            return Optional.of(mapper.toDto(Objects.requireNonNull(booking.toObject(BookingDocument.class))));
         });
     }
 
@@ -43,9 +45,11 @@ public class BookingService {
                 var marker = tx.get(markerRef).get();
                 if (marker.exists()) {
                     var existing = tx.get(firestore.collection("bookings")
-                            .document(marker.getLong("bookingId").toString())).get();
-                    if (!existing.exists()) throw new IllegalArgumentException("Оформленная заявка уже удалена");
-                    return mapper.toDto(existing.toObject(BookingDocument.class));
+                            .document(Objects.requireNonNull(marker.getLong("bookingId")).toString())).get();
+                    if (!existing.exists()) {
+                        throw new IllegalArgumentException("Оформленная заявка уже удалена");
+                    }
+                    return mapper.toDto(Objects.requireNonNull(existing.toObject(BookingDocument.class)));
                 }
             }
             var serviceRef = firestore.collection("services").document(dto.serviceId().toString());
@@ -56,7 +60,9 @@ public class BookingService {
             Long lastId = counter.exists() ? counter.getLong("lastId") : null;
             long id = (lastId == null ? 0 : lastId) + 1;
             var ref = firestore.collection("bookings").document(Long.toString(id));
-            if (tx.get(ref).get().exists()) throw new IllegalStateException("Восстановите счетчик ID миграцией");
+            if (tx.get(ref).get().exists()) {
+                throw new IllegalStateException("Восстановите счетчик ID миграцией");
+            }
             var booking = mapper.toDocument(dto);
             booking.setId(id);
             var now = Timestamp.now();
@@ -66,7 +72,9 @@ public class BookingService {
             tx.set(counterRef, Map.of("lastId", id));
             tx.create(ref, booking);
             tx.update(serviceRef, "usage.bookingsCount", count(service) + 1);
-            if (markerRef != null) tx.create(markerRef, Map.of("bookingId", id));
+            if (markerRef != null) {
+                tx.create(markerRef, Map.of("bookingId", id));
+            }
             return mapper.toDto(booking);
         });
     }
@@ -104,13 +112,17 @@ public class BookingService {
                 requireActive(newService);
                 if (reassigned) {
                     oldService = tx.get(oldRef).get();
-                    if (!oldService.exists() || count(oldService) < 1)
+                    if (!oldService.exists() || count(oldService) < 1) {
                         throw new IllegalStateException("Некорректный счетчик услуги");
+                    }
                 }
             }
             var changed = new ArrayList<String>();
             Timestamp now = Timestamp.now();
-            if (status != null && !status.name().equals(booking.getStatus().getCode())) {
+            String currentCode = booking.getStatus() != null
+                    ? booking.getStatus().getCode()
+                    : booking.getStatusCode();
+            if (status != null && !status.name().equals(currentCode)) {
                 booking.setStatus(new BookingStatusDocument(status.name(), now));
                 changed.add("status");
             }
@@ -130,7 +142,6 @@ public class BookingService {
                     .atOffset(ZoneOffset.UTC).toLocalDate().toString();
             var dailyRef = firestore.collection("bookingChangeDaily").document(day);
             var eventRef = firestore.collection("bookingChanges").document(id + "_" + revision);
-            // All reads above, all writes below. A retry repeats the whole transaction.
             tx.set(ref, booking);
             if (reassigned) {
                 tx.update(oldRef, "usage.bookingsCount", count(oldService) - 1);
@@ -147,7 +158,9 @@ public class BookingService {
         operations.transaction(tx -> {
             var ref = firestore.collection("bookings").document(id.toString());
             var booking = tx.get(ref).get();
-            if (!booking.exists()) throw new BookingNotFoundException("Заявка не найдена: " + id);
+            if (!booking.exists()) {
+                throw new BookingNotFoundException("Заявка не найдена: " + id);
+            }
             var serviceRef = firestore.collection("services").document(booking.getLong("serviceId").toString());
             var service = tx.get(serviceRef).get();
             if (!service.exists() || count(service) < 1) throw new IllegalStateException("Некорректный счетчик услуги");
@@ -158,8 +171,9 @@ public class BookingService {
     }
 
     private static void requireActive(DocumentSnapshot service) {
-        if (!service.exists() || Boolean.FALSE.equals(service.getBoolean("active")))
+        if (!service.exists() || Boolean.FALSE.equals(service.getBoolean("active"))) {
             throw new IllegalArgumentException("Услуга не найдена или отключена");
+        }
     }
     private static long count(DocumentSnapshot service) {
         Long count = service.getLong("usage.bookingsCount");

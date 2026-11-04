@@ -37,8 +37,7 @@ public record BookingCursor(Instant createdAt, String documentId) {
             }
             return new BookingCursor(date, parts[2]);
         } catch (IllegalArgumentException | DateTimeParseException e) {
-            throw new IllegalArgumentException(
-                    "Некорректный cursor или изменены условия поиска");
+            throw new IllegalArgumentException("Некорректный cursor или изменены условия поиска");
         }
     }
 

@@ -8,5 +8,5 @@ import java.util.Optional;
 public interface UniversityServiceStore {
     List<UniversityServiceDocument> findAll();
     Optional<UniversityServiceDocument> findById(Long id);
-    UniversityServiceDocument save(UniversityServiceDocument universityServiceDocument);
+    void save(UniversityServiceDocument universityServiceDocument);
 }

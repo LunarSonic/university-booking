@@ -7,14 +7,13 @@ import ru.universitybooking.entity.StatusRequest;
 
 import java.util.List;
 import java.util.Optional;
-import com.google.cloud.Timestamp;
 
 public interface BookingStore {
     Optional<BookingDocument> findById(Long id);
     List<BookingDocument> findAll();
-    List <BookingDocument> findByStatus(StatusRequest status);
+    List<BookingDocument> findByStatus(StatusRequest status);
     List<BookingDocument> findByStatusAndUserId(StatusRequest status, Long userId);
-    BookingDocument save(BookingDocument bookingDocument);
+    void save(BookingDocument bookingDocument);
     void delete(Long id);
     BookingPage<BookingDocument> search(BookingSearchRequest request);
 }

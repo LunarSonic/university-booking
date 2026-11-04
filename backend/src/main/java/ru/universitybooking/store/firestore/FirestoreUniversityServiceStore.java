@@ -45,12 +45,11 @@ public class FirestoreUniversityServiceStore implements UniversityServiceStore {
     }
 
     @Override
-    public UniversityServiceDocument save(UniversityServiceDocument universityServiceDocument) {
+    public void save(UniversityServiceDocument universityServiceDocument) {
         try {
             firestore.collection("services")
                     .document(String.valueOf(universityServiceDocument.getId()))
                     .set(universityServiceDocument).get();
-            return universityServiceDocument;
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException("Ошибка сохранения услуги id=" + universityServiceDocument.getId(), e);
         }
