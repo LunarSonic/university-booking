@@ -12,9 +12,11 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class UniversityCatalogService {
+
     private final UniversityServiceStore universityServiceStore;
     private final Firestore firestore;
     private final FirestoreOperations operations;
+
     @Cacheable("services")
     public List<ServiceDto> getAllUniversityService() {
         return universityServiceStore.findAll().stream()

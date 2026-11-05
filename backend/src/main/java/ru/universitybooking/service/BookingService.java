@@ -16,6 +16,7 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class BookingService {
+
     private final BookingStore bookingStore;
     private final BookingMapper mapper;
     private final Firestore firestore;
@@ -26,7 +27,9 @@ public class BookingService {
     public Optional<BookingDto> completedCheckout(Long basketId) {
         return operations.transaction(tx -> {
             var marker = tx.get(firestore.collection("checkouts").document(basketId.toString())).get();
-            if (!marker.exists()) return Optional.empty();
+            if (!marker.exists()) {
+                return Optional.empty();
+            }
             var booking = tx.get(firestore.collection("bookings")
                     .document(Objects.requireNonNull(marker.getLong("bookingId")).toString())).get();
             if (!booking.exists()) {
@@ -100,7 +103,9 @@ public class BookingService {
         return operations.transaction(tx -> {
             var ref = firestore.collection("bookings").document(id.toString());
             var snapshot = tx.get(ref).get();
-            if (!snapshot.exists()) throw new BookingNotFoundException("Заявка не найдена: " + id);
+            if (!snapshot.exists()) {
+                throw new BookingNotFoundException("Заявка не найдена: " + id);
+            }
             var booking = snapshot.toObject(BookingDocument.class);
             var oldRef = firestore.collection("services").document(booking.getServiceId().toString());
             boolean reassigned = newServiceId != null && !newServiceId.equals(booking.getServiceId());
@@ -133,8 +138,12 @@ public class BookingService {
                     changed.add("details");
                 }
             }
-            if (reassigned) { booking.setServiceId(newServiceId); changed.add("serviceId"); }
-            if (changed.isEmpty()) return mapper.toDto(booking);
+            if (reassigned) {
+                booking.setServiceId(newServiceId); changed.add("serviceId");
+            }
+            if (changed.isEmpty()) {
+                return mapper.toDto(booking);
+            }
             int revision = (booking.getRevision() == null ? 0 : booking.getRevision()) + 1;
             booking.setRevision(revision);
             booking.setUpdatedAt(now);
@@ -163,7 +172,9 @@ public class BookingService {
             }
             var serviceRef = firestore.collection("services").document(booking.getLong("serviceId").toString());
             var service = tx.get(serviceRef).get();
-            if (!service.exists() || count(service) < 1) throw new IllegalStateException("Некорректный счетчик услуги");
+            if (!service.exists() || count(service) < 1) {
+                throw new IllegalStateException("Некорректный счетчик услуги");
+            }
             tx.delete(ref);
             tx.update(serviceRef, "usage.bookingsCount", count(service) - 1);
             return null;

@@ -13,6 +13,7 @@ import java.util.concurrent.ExecutionException;
 @Component
 @RequiredArgsConstructor
 public class FirestoreUniversityServiceStore implements UniversityServiceStore {
+
     private final Firestore firestore;
 
     @Override

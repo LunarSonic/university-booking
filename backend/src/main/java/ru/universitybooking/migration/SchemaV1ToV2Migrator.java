@@ -14,6 +14,7 @@ import java.util.*;
 @Profile("migration")
 @RequiredArgsConstructor
 public class SchemaV1ToV2Migrator {
+
     private final Firestore firestore;
     private final FirestoreOperations operations;
 
@@ -24,19 +25,27 @@ public class SchemaV1ToV2Migrator {
         try {
             while (true) {
                 Query query = firestore.collection("bookings").orderBy(FieldPath.documentId()).limit(100);
-                if (last != null) query = query.startAfter(last);
+                if (last != null) {
+                    query = query.startAfter(last);
+                }
                 var page = query.get().get().getDocuments();
-                if (page.isEmpty()) break;
+                if (page.isEmpty()) {
+                    break;
+                }
                 for (var entry : page) {
                     scanned++;
                     try {
                         boolean changed = operations.transaction(tx -> {
                             var doc = tx.get(entry.getReference()).get();
-                            if (!doc.exists()) return false;
+                            if (!doc.exists()) {
+                                return false;
+                            }
                             Object status = doc.get("status");
                             if (status instanceof Map<?,?> map && map.get("code") instanceof String code) {
                                 StatusRequest.valueOf(code);
-                                if (Long.valueOf(2).equals(doc.getLong("schemaVersion"))) return false;
+                                if (Long.valueOf(2).equals(doc.getLong("schemaVersion"))) {
+                                    return false;
+                                }
                                 if (!dryRun) {
                                     tx.update(doc.getReference(), "schemaVersion", 2);
                                 }
@@ -56,8 +65,11 @@ public class SchemaV1ToV2Migrator {
                             }
                             return true;
                         });
-                        if (changed) migrated++;
-                        else skipped++;
+                        if (changed) {
+                            migrated++;
+                        } else {
+                            skipped++;
+                        }
                     } catch (Exception e) {
                         failed++;
                         log.error("Миграция id={}: {}", entry.getId(), e.getMessage());

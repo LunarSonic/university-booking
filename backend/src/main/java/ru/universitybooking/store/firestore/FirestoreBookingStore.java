@@ -21,6 +21,7 @@ import java.util.concurrent.ExecutionException;
 @Component
 @RequiredArgsConstructor
 public class FirestoreBookingStore implements BookingStore {
+
     private final Firestore firestore;
 
     @Override

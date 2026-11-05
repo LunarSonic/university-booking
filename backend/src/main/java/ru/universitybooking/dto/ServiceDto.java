@@ -2,6 +2,7 @@ package ru.universitybooking.dto;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

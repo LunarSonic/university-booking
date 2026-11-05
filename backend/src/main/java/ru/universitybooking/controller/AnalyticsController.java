@@ -24,14 +24,17 @@ public class AnalyticsController {
 
     @GetMapping("/booking-changes")
     public Analytics changes(@RequestParam LocalDate from, @RequestParam LocalDate to, @RequestParam(defaultValue = "day") String interval) {
-        if (!interval.equals("day") || !from.isBefore(to) || ChronoUnit.DAYS.between(from, to) > 366)
+        if (!interval.equals("day") || !from.isBefore(to) || ChronoUnit.DAYS.between(from, to) > 366) {
             throw new IllegalArgumentException("Нужен interval=day и период от 1 до 366 суток [from,to)");
+        }
         try {
             var docs = firestore.collection("bookingChangeDaily")
                     .whereGreaterThanOrEqualTo("day", from.toString())
                     .whereLessThan("day", to.toString()).get().get().getDocuments();
             Map<String, Long> counts = new HashMap<>();
-            for (var doc : docs) counts.put(doc.getString("day"), doc.getLong("changesCount"));
+            for (var doc : docs) {
+                counts.put(doc.getString("day"), doc.getLong("changesCount"));
+            }
             var items = from.datesUntil(to).map(day -> new Bucket(day.toString(),
                     counts.getOrDefault(day.toString(), 0L))).toList();
             return new Analytics("day", "UTC", items);

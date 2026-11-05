@@ -57,13 +57,17 @@ public class BookingMapper {
     }
 
     public LocalDateTime toLocalDateTime(Timestamp timestamp) {
-        if (timestamp == null) return null;
+        if (timestamp == null) {
+            return null;
+        }
         return LocalDateTime.ofInstant(
                 Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos()), ZoneOffset.UTC);
     }
 
     public Timestamp toTimestamp(LocalDateTime dateTime) {
-        if (dateTime == null) return null;
+        if (dateTime == null) {
+            return null;
+        }
         Instant instant = dateTime.toInstant(ZoneOffset.UTC);
         return Timestamp.ofTimeSecondsAndNanos(
                 instant.getEpochSecond(),

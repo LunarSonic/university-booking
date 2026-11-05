@@ -12,9 +12,6 @@ import ru.universitybooking.dto.BookingPage;
 import ru.universitybooking.dto.BookingSearchRequest;
 import ru.universitybooking.entity.StatusRequest;
 import ru.universitybooking.service.BookingService;
-import java.time.Instant;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
 @RestController
