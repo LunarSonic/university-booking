@@ -9,6 +9,9 @@ import ru.universitybooking.dto.BookingDto;
 import ru.universitybooking.entity.BasketItem;
 import ru.universitybooking.exception.BasketItemNotFoundException;
 import ru.universitybooking.repository.BasketRepo;
+import ru.universitybooking.scylla.EventJournalService;
+import ru.universitybooking.scylla.EventOperation;
+import ru.universitybooking.scylla.EventResult;
 import ru.universitybooking.store.UniversityServiceStore;
 
 import java.time.LocalDateTime;
@@ -21,6 +24,7 @@ public class BasketService {
     private final StringRedisTemplate stringRedisTemplate;
     private final BookingService bookingService;
     private final UniversityServiceStore universityServiceStore;
+    private final EventJournalService eventJournal;
 
     @Value("${basket.ttl-seconds}")
     private Long ttlSeconds;
@@ -28,11 +32,13 @@ public class BasketService {
     public BasketService(BasketRepo basketRepo,
                          StringRedisTemplate stringRedisTemplate,
                          BookingService bookingService,
-                         UniversityServiceStore universityServiceStore) {
+                         UniversityServiceStore universityServiceStore,
+                         EventJournalService eventJournal) {
         this.basketRepo = basketRepo;
         this.stringRedisTemplate = stringRedisTemplate;
         this.bookingService = bookingService;
         this.universityServiceStore = universityServiceStore;
+        this.eventJournal = eventJournal;
     }
 
     public BasketItemResponse addItem(BasketItemRequest dto) {
@@ -77,18 +83,31 @@ public class BasketService {
             basketRepo.deleteById(basketItemId);
             return completed.get();
         }
-        BasketItem item = basketRepo.findById(basketItemId)
-                .orElseThrow(() -> new BasketItemNotFoundException(
-                        "Элемент корзины с id " + basketItemId + " не найден"));
 
-        BookingDto bookingDto = new BookingDto(
-                null, item.getUserId(), item.getServiceId(),
-                item.getRoom(), item.getBookingDate(), null, null);
-        BookingDto created = bookingService.checkout(basketItemId, bookingDto);
+        BasketItem item;
+        try {
+            item = basketRepo.findById(basketItemId)
+                    .orElseThrow(() -> new BasketItemNotFoundException(
+                            "Элемент корзины с id " + basketItemId + " не найден"));
+        } catch (BasketItemNotFoundException e) {
+            eventJournal.recordAsync(EventOperation.CHECKOUT, EventResult.REJECTED,
+                    null, "BASKET_ITEM_NOT_FOUND");
+            throw e;
+        }
 
-        basketRepo.deleteById(basketItemId);
-
-        return created;
+        try {
+            BookingDto bookingDto = new BookingDto(
+                    null, item.getUserId(), item.getServiceId(),
+                    item.getRoom(), item.getBookingDate(), null, null);
+            BookingDto created = bookingService.checkout(basketItemId, bookingDto);
+            basketRepo.deleteById(basketItemId);
+            eventJournal.recordAsync(EventOperation.CHECKOUT, EventResult.SUCCESS, created.id(), null);
+            return created;
+        } catch (Exception e) {
+            eventJournal.recordAsync(EventOperation.CHECKOUT, EventResult.REJECTED,
+                    null, e.getClass().getSimpleName());
+            throw e;
+        }
     }
 
     private BasketItemResponse toDto(BasketItem item) {

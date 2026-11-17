@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, X, Trash2, Plus } from 'lucide-react';
+import { Check, X, Trash2, Plus, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Projector } from 'lucide-react';
 import { getUserLabel } from '../constants/users';
 
 export function BookingsAdmin({
@@ -7,6 +7,14 @@ export function BookingsAdmin({
   currentUser,
   statusFilter,
   setStatusFilter,
+  direction,
+  setDirection,
+  needsProjector,
+  setNeedsProjector,
+  page,
+  nextCursor,
+  onNextPage,
+  onPrevPage,
   services,
   onUpdateStatus,
   onDeleteBooking,
@@ -85,6 +93,25 @@ export function BookingsAdmin({
           <span className="status-dot status-dot-rejected" />
           Отклонённые
         </button>
+
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+          <button
+            className={`tab-btn ${needsProjector === true ? 'active' : ''}`}
+            onClick={() => setNeedsProjector(needsProjector === true ? null : true)}
+            title="Фильтр по вложенному полю details.needsProjector"
+          >
+            <Projector size={14} />
+            С проектором
+          </button>
+          <button
+            className="tab-btn"
+            onClick={() => setDirection(direction === 'DESC' ? 'ASC' : 'DESC')}
+            title="Сортировка по дате создания"
+          >
+            {direction === 'DESC' ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
+            {direction === 'DESC' ? 'Сначала новые' : 'Сначала старые'}
+          </button>
+        </div>
       </div>
 
       {visibleBookings.length === 0 ? (
@@ -191,6 +218,29 @@ export function BookingsAdmin({
           ))}
         </div>
       )}
+
+      {/* Pagination */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px' }}>
+        {page > 1 ? (
+          <button className="btn btn-outline btn-sm" onClick={onPrevPage} disabled={loading}>
+            <ChevronLeft size={14} />
+            Предыдущая страница
+          </button>
+        ) : (
+          <span />
+        )}
+        <span style={{ fontSize: '13px', color: 'var(--text-muted, #888)' }}>
+          Страница {page}
+        </span>
+        {nextCursor ? (
+          <button className="btn btn-outline btn-sm" onClick={onNextPage} disabled={loading}>
+            Следующая страница
+            <ChevronRight size={14} />
+          </button>
+        ) : (
+          <span />
+        )}
+      </div>
     </div>
   );
 }

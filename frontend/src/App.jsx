@@ -5,18 +5,19 @@ import { Basket } from './components/Basket';
 import { BookingsAdmin } from './components/BookingsAdmin';
 import { BookingModal } from './components/BookingModal';
 import { Toast } from './components/Toast';
+import { EventsJournal } from './components/EventsJournal';
 import {
   fetchServices,
   fetchBasket,
   addToBasket,
   deleteBasketItem,
   checkoutBasketItem,
-  fetchBookings,
+  searchBookings,
   updateBookingStatus,
   deleteBooking,
   createDirectBooking
 } from './services/api';
-import { BookOpen, ShoppingCart, CalendarCheck, Shield } from 'lucide-react';
+import { BookOpen, ShoppingCart, CalendarCheck, Shield, ScrollText } from 'lucide-react';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState({
@@ -32,6 +33,11 @@ export default function App() {
   const [basketItems, setBasketItems] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [statusFilter, setStatusFilter] = useState('NEW');
+  const [direction, setDirection] = useState('DESC');
+  const [needsProjector, setNeedsProjector] = useState(null);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [page, setPage] = useState(1);
+  const [cursorStack, setCursorStack] = useState([null]); // cursorStack[i] — курсор для страницы i+1
 
   // Separate loading states
   const [servicesLoading, setServicesLoading] = useState(false);
@@ -102,11 +108,12 @@ export default function App() {
   };
 
   // Load bookings with AbortController support
-  const loadBookingsWithSignal = useCallback(async (status, userId, signal) => {
+  const loadBookingsWithSignal = useCallback(async (status, userId, dir, projector, cursor, signal) => {
     setBookingsLoading(true);
     try {
-      const data = await fetchBookings(status, userId, signal);
-      setBookings(data);
+      const data = await searchBookings({ status, userId, direction: dir, needsProjector: projector, cursor, signal });
+      setBookings(data.items);
+      setNextCursor(data.nextCursor || null);
     } catch (err) {
       if (err.name !== 'AbortError') {
         addToast('Ошибка заявок', err.message, 'error');
@@ -121,8 +128,28 @@ export default function App() {
   // Convenience wrapper for manual refresh (no abort needed)
   const loadBookings = useCallback(() => {
     const userId = currentUser.role !== 'admin' ? currentUser.id : null;
-    loadBookingsWithSignal(statusFilter, userId);
-  }, [currentUser, statusFilter, loadBookingsWithSignal]);
+    setPage(1);
+    setNextCursor(null);
+    setCursorStack([null]);
+    loadBookingsWithSignal(statusFilter, userId, direction, needsProjector, null);
+  }, [currentUser, statusFilter, direction, needsProjector, loadBookingsWithSignal]);
+
+  const handleNextPage = useCallback(() => {
+    if (!nextCursor) return;
+    const userId = currentUser.role !== 'admin' ? currentUser.id : null;
+    setCursorStack((prev) => [...prev, nextCursor]);
+    setPage((p) => p + 1);
+    loadBookingsWithSignal(statusFilter, userId, direction, needsProjector, nextCursor);
+  }, [nextCursor, currentUser, statusFilter, direction, needsProjector, loadBookingsWithSignal]);
+
+  const handlePrevPage = useCallback(() => {
+    if (page <= 1) return;
+    const userId = currentUser.role !== 'admin' ? currentUser.id : null;
+    const prevCursor = cursorStack[page - 2]; // курсор для предыдущей страницы
+    setCursorStack((prev) => prev.slice(0, -1));
+    setPage((p) => p - 1);
+    loadBookingsWithSignal(statusFilter, userId, direction, needsProjector, prevCursor);
+  }, [page, cursorStack, currentUser, statusFilter, direction, needsProjector, loadBookingsWithSignal]);
 
   // Initial load
   useEffect(() => {
@@ -137,17 +164,20 @@ export default function App() {
     }
   }, [currentUser.id]);
 
-  // When switching tabs or status filter — with AbortController
+  // When switching tabs, status filter or direction — with AbortController
   useEffect(() => {
     if (activeTab === 'basket') {
       loadBasket(currentUser.id);
     } else if (activeTab === 'bookings') {
       const controller = new AbortController();
       const userId = currentUser.role !== 'admin' ? currentUser.id : null;
-      loadBookingsWithSignal(statusFilter, userId, controller.signal);
+      setPage(1);
+      setNextCursor(null);
+      setCursorStack([null]);
+      loadBookingsWithSignal(statusFilter, userId, direction, needsProjector, null, controller.signal);
       return () => controller.abort();
     }
-  }, [activeTab, statusFilter]);
+  }, [activeTab, statusFilter, direction, needsProjector]);
 
   // Actions
   const handleAddToBasket = async (payload) => {
@@ -260,6 +290,16 @@ export default function App() {
                 </>
               )}
             </button>
+
+            {currentUser.role === 'admin' && (
+              <button
+                className={`tab-btn ${activeTab === 'events' ? 'active' : ''}`}
+                onClick={() => setActiveTab('events')}
+              >
+                <ScrollText size={18} />
+                Журнал событий
+              </button>
+            )}
           </div>
         </div>
 
@@ -290,6 +330,14 @@ export default function App() {
             currentUser={currentUser}
             statusFilter={statusFilter}
             setStatusFilter={setStatusFilter}
+            direction={direction}
+            setDirection={setDirection}
+            needsProjector={needsProjector}
+            setNeedsProjector={setNeedsProjector}
+            page={page}
+            nextCursor={nextCursor}
+            onNextPage={handleNextPage}
+            onPrevPage={handlePrevPage}
             services={services}
             onUpdateStatus={handleUpdateStatus}
             onDeleteBooking={handleDeleteBooking}
@@ -299,6 +347,10 @@ export default function App() {
             }}
             loading={bookingsLoading}
           />
+        )}
+
+        {activeTab === 'events' && currentUser.role === 'admin' && (
+          <EventsJournal />
         )}
       </main>
 

@@ -5,6 +5,7 @@
 ![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
 ![Firestore](https://img.shields.io/badge/Firestore-FFCA28?logo=firebase&logoColor=black)
+![ScyllaDB](https://img.shields.io/badge/ScyllaDB-6CD5E9?logo=scylladb&logoColor=black)
 ![Gradle](https://img.shields.io/badge/Gradle-02303A?logo=gradle&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
 
@@ -281,6 +282,179 @@ curl -X DELETE "http://localhost:8079/emulator/v1/projects/university-booking-de
 ```
 
 
+# Лабораторная работа №3
+
+## Задание
+
+| Параметр                  | Значение                                              |
+|---------------------------|-------------------------------------------------------|
+| Система хранения          | ScyllaDB (wide-column)                                |
+| Хранимые события          | События выполнения бизнес-операций                    |
+| Обязательный запрос       | События с заданным результатом за период              |
+| Размер временного бакета  | Один день (UTC)                                       |
+| Сценарий согласованности  | Запись с ONE, чтение с QUORUM                         |
+| Эксперимент с отказом     | Остановка одного узла-реплики                         |
+| Исследуемый механизм      | Образование и удаление tombstones                     |
+
+## Что реализовано
+
+| Компонент                | Описание                                                                                 |
+|--------------------------|------------------------------------------------------------------------------------------|
+| `ScyllaConfig`           | Подключение к кластеру, создание keyspace и таблиц при старте (`CREATE IF NOT EXISTS`)   |
+| `EventRecord`            | Модель события: `eventId`, `occurredAt`, `operation`, `result`, `bookingId`, `errorCode` |
+| `EventJournalRepository` | Prepared statements, запись `ONE`, чтение `QUORUM`, retry ×3 при сбое записи             |
+| `EventJournalService`    | Async-запись через виртуальный поток; пагинация по дням от новых к старым                |
+| `EventCursor`            | Версионированный Base64-курсор: `"1\|day_utc\|hex_paging_state"`                         |
+| `EventController`        | Три REST-эндпоинта для чтения журнала событий                                            |
+| `BookingService`         | Записывает `CREATE_BOOKING` и `UPDATE_STATUS` после подтверждения Firestore              |
+| `BasketService`          | Записывает `CHECKOUT`; идемпотентный повтор оформления события не создаёт                |
+| `scylla-schema.cql`      | CQL-схема с обоснованием ключей (документация и ручное выполнение)                       |
+| `docker-compose.yml`     | Кластер из 3 узлов ScyllaDB с healthcheck через `cqlsh`                                  |
+
+## Таблицы ScyllaDB
+
+Три денормализованные таблицы под три запроса.
+
+| Запрос                                | Таблица                   | Partition key           |
+|---------------------------------------|---------------------------|-------------------------|
+| По результату операции (обязательный) | `events_by_result_day`    | `(result, day_utc)`     |
+| По типу операции                      | `events_by_operation_day` | `(operation, day_utc)`  |
+| По заявке                             | `events_by_booking_day`   | `(booking_id, day_utc)` |
+
+Во всех таблицах clustering columns: `occurred_at DESC, event_id DESC`.
+
+**Обоснование ключей:**
+- Partition key объединяет фильтр запроса со суточным бакетом UTC — данные за один день и одно значение фильтра попадают в одну партицию и читаются без `ALLOW FILTERING`.
+- Суточный бакет ограничивает размер партиции: максимум 86 400 событий в сутки на значение фильтра.
+- `occurred_at DESC` — порядок от новых к старым, нужный для пагинации.
+- `event_id DESC` — детерминированный порядок при совпадении метки времени.
+
+## Поля события
+
+| Поле          | Тип       | Описание                                            |
+|---------------|-----------|-----------------------------------------------------|
+| `event_id`    | UUID      | Уникальный идентификатор (v4)                       |
+| `occurred_at` | timestamp | Момент события (UTC)                                |
+| `operation`   | text      | `CREATE_BOOKING`, `UPDATE_STATUS`, `CHECKOUT`       |
+| `result`      | text      | `SUCCESS`, `REJECTED`                               |
+| `booking_id`  | bigint    | ID заявки (null для некоторых отклонённых операций) |
+| `error_code`  | text      | Класс исключения для `REJECTED`-событий             |
+
+Успешная смена статуса заявки на `REJECTED` имеет `result = SUCCESS`: результатом события является успех операции смены статуса, а не финальный статус заявки.
+
+## Согласованность
+
+| Операция          | Уровень   | Смысл                                                         |
+|-------------------|-----------|---------------------------------------------------------------|
+| Запись в журнал   | `ONE`     | Достаточно подтверждения одной реплики — минимальная задержка |
+| Чтение из журнала | `QUORUM`  | Нужны 2 из 3 реплик — гарантирует видимость последней записи  |
+
+При RF=3 и QUORUM чтение всегда успешно, если доступны хотя бы 2 узла. Запись `ONE` не гарантирует немедленную видимость через QUORUM: 1 + 2 = 3, пересечение наборов реплик не гарантировано.
+
+## API журнала событий
+
+Все эндпоинты реализованы за счёт денормализованных таблиц.
+
+| Метод   | URL                    | Описание                                                      |
+|---------|------------------------|---------------------------------------------------------------|
+| `GET`   | `/events/by-result`    | Обязательный запрос: события с заданным результатом за период |
+| `GET`   | `/events/by-operation` | События по типу операции за период                            |
+| `GET`   | `/events/by-booking`   | События конкретной заявки за период                           |
+
+**Общие параметры:**
+
+| Параметр   | Тип                | Описание                                  |
+|------------|--------------------|-------------------------------------------|
+| `from`     | Instant (ISO 8601) | Начало диапазона (обязательный)           |
+| `to`       | Instant (ISO 8601) | Конец диапазона (обязательный)            |
+| `limit`    | int                | Размер страницы (1–500, по умолчанию 20)  |
+| `cursor`   | String             | Непрозрачный курсор из предыдущего ответа |
+
+**Уникальные параметры:**
+
+| Эндпоинт        | Параметр    | Значения                                      |
+|-----------------|-------------|-----------------------------------------------|
+| `/by-result`    | `result`    | `SUCCESS`, `REJECTED`                         |
+| `/by-operation` | `operation` | `CREATE_BOOKING`, `UPDATE_STATUS`, `CHECKOUT` |
+| `/by-booking`   | `bookingId` | long                                          |
+
+Ответ: `{ "items": [...], "nextCursor": "..." }`. Если `nextCursor == null` — страниц больше нет.
+
+```bash
+# Обязательный запрос: успешные события за день
+curl "http://localhost:8080/events/by-result?result=SUCCESS&from=2026-11-17T00:00:00Z&to=2026-11-17T23:59:59Z&limit=20"
+
+# Следующая страница
+curl "http://localhost:8080/events/by-result?result=SUCCESS&from=2026-11-17T00:00:00Z&to=2026-11-17T23:59:59Z&limit=20&cursor=<nextCursor>"
+
+# События CREATE_BOOKING за период
+curl "http://localhost:8080/events/by-operation?operation=CREATE_BOOKING&from=2026-11-17T00:00:00Z&to=2026-11-17T23:59:59Z"
+
+# Все события заявки с id=1
+curl "http://localhost:8080/events/by-booking?bookingId=1&from=2026-11-01T00:00:00Z&to=2026-11-30T23:59:59Z"
+```
+
+## Пагинация
+
+Страницы обходят дни от `to` до `from` (от новых к старым). Курсор кодирует: (день UTC, paging state внутри дня). При исчерпании дня автоматически переходит к предыдущему. Переход через полночь UTC, пустые дни и события с одинаковым временем обрабатываются корректно.
+
+## Кластер ScyllaDB
+
+Три узла в одном датацентре `datacenter1`, keyspace `university_events` с `NetworkTopologyStrategy RF=3`.
+
+```
+docker exec scylla1 nodetool status
+# Datacenter: datacenter1
+# =======================
+# Status=Up/Down
+# |/ State=Normal/Leaving/Joining/Moving
+# --  Address      Tokens  Rack
+# UN  172.x.x.1    256     rack1   <- scylla1
+# UN  172.x.x.2    256     rack1   <- scylla2
+# UN  172.x.x.3    256     rack1   <- scylla3
+```
+
+| Порт хоста   | Контейнер   | Назначение                                       |
+|--------------|-------------|--------------------------------------------------|
+| 9042         | scylla1     | CQL-порт seed-узла (контактная точка приложения) |
+| 9043         | scylla2     | CQL-порт для прямых экспериментов                |
+| 9044         | scylla3     | CQL-порт для прямых экспериментов                |
+| 10000        | scylla1     | REST API для nodetool                            |
+
+Приложение подключается к `scylla1:9042`. Драйвер сам обнаруживает остальные узлы через peer discovery.
+
+## Эксперименты
+
+### Эксперимент с отказом узла и согласованностью
+
+Сравнивает доступность и задержку в трёх фазах: все 3 узла работают → scylla3 остановлен → scylla3 возвращён.
+
+```bash
+./scripts/scylla-consistency-experiment.sh
+# Результаты: results/consistency/results.csv
+```
+
+При RF=3 и QUORUM достаточно 2 реплик — чтение и запись продолжают работать при остановке одного узла. Для уровня ONE запись успешна даже при одной доступной реплике, но QUORUM-чтение может вернуть старые данные, пока не выполнится read repair.
+
+### Исследование tombstones
+
+```bash
+./scripts/scylla-tombstone-experiment.sh
+```
+
+Шаги: вставка 100 строк → flush → удаление 40 строк → flush → `scylla sstable dump-data` (видны маркеры `partition_tombstone`) → ожидание `gc_grace_seconds=60` → compaction → tombstones физически удалены, строки по-прежнему не читаются.
+
+Tombstones необходимы при RF>1: узлы, которые не получили DELETE, при восстановлении должны узнать, что строка удалена — иначе они вернут её обратно (read repair). `gc_grace_seconds` — окно, в течение которого tombstone гарантированно распространится на все реплики до физического удаления.
+
+### Нагрузочное тестирование
+
+```bash
+./scripts/scylla-load-test.sh
+# Результаты: results/loadtest/summary.csv
+```
+
+Прогрев 10 с, затем замеры по 30 с при параллелизме 1, 5, 10, 20, 50. Фиксирует throughput (rps), среднюю задержку и p95 отдельно для записи (POST `/bookings`) и чтения (`GET /events/by-result`).
+
 # Быстрый старт
 
 ## Требования
@@ -301,7 +475,7 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-При первом запуске `DataInitializer` автоматически заполняет коллекцию `services` начальными данными.
+При первом запуске `DataInitializer` автоматически заполняет коллекцию `services` начальными данными. Кластер ScyllaDB (3 узла) инициализируется ~3–5 минут — приложение стартует только после того, как все три узла пройдут healthcheck. Схема keyspace и таблиц создаётся автоматически при первом запуске приложения.
 
 ### Сервисы
 
@@ -312,6 +486,9 @@ docker compose up -d --build
 | Firestore Emulator (API) | http://localhost:8079    |
 | PostgreSQL               | localhost:5434           |
 | Redis                    | localhost:6379           |
+| ScyllaDB node 1 (CQL)    | localhost:9042           |
+| ScyllaDB node 2 (CQL)    | localhost:9043           |
+| ScyllaDB node 3 (CQL)    | localhost:9044           |
 
 ### Остановка
 

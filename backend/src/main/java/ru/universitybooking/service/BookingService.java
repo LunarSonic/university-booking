@@ -9,6 +9,9 @@ import ru.universitybooking.dto.*;
 import ru.universitybooking.entity.StatusRequest;
 import ru.universitybooking.exception.BookingNotFoundException;
 import ru.universitybooking.mapper.BookingMapper;
+import ru.universitybooking.scylla.EventJournalService;
+import ru.universitybooking.scylla.EventOperation;
+import ru.universitybooking.scylla.EventResult;
 import ru.universitybooking.store.BookingStore;
 import java.time.*;
 import java.util.*;
@@ -21,8 +24,19 @@ public class BookingService {
     private final BookingMapper mapper;
     private final Firestore firestore;
     private final FirestoreOperations operations;
+    private final EventJournalService eventJournal;
 
-    public BookingDto createBooking(BookingDto dto) { return create(dto, null); }
+    public BookingDto createBooking(BookingDto dto) {
+        try {
+            BookingDto result = create(dto, null);
+            eventJournal.recordAsync(EventOperation.CREATE_BOOKING, EventResult.SUCCESS, result.id(), null);
+            return result;
+        } catch (Exception e) {
+            eventJournal.recordAsync(EventOperation.CREATE_BOOKING, EventResult.REJECTED,
+                    null, e.getClass().getSimpleName());
+            throw e;
+        }
+    }
 
     public Optional<BookingDto> completedCheckout(Long basketId) {
         return operations.transaction(tx -> {
@@ -88,7 +102,15 @@ public class BookingService {
     }
 
     public BookingDto updateBooking(Long id, StatusRequest status) {
-        return change(id, status, null, null);
+        try {
+            BookingDto result = change(id, status, null, null);
+            eventJournal.recordAsync(EventOperation.UPDATE_STATUS, EventResult.SUCCESS, id, null);
+            return result;
+        } catch (Exception e) {
+            eventJournal.recordAsync(EventOperation.UPDATE_STATUS, EventResult.REJECTED,
+                    id, e.getClass().getSimpleName());
+            throw e;
+        }
     }
 
     public BookingDto updateDetails(Long id, BookingDetailsDto details) {

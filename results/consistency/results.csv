@@ -1,0 +1,13 @@
+phase,operation,success,fail,avg_ms
+baseline,write,30,20,47
+baseline,read,10,0,38
+baseline,cql_write_ONE,20,0,236
+baseline,cql_write_QUORUM,20,0,230
+degraded,write,0,50,41
+degraded,read,0,10,44
+degraded,cql_write_ONE,20,0,244
+degraded,cql_write_QUORUM,20,0,268
+recovered,write,30,20,47
+recovered,read,10,0,38
+recovered,cql_write_ONE,20,0,241
+recovered,cql_write_QUORUM,20,0,252
