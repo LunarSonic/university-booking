@@ -271,9 +271,9 @@ cp .env.example .env
 
 Просмотр данных в эмуляторе через curl:
 ```bash
-./backend/scripts/firestore.sh bookings      # вся коллекция
-./backend/scripts/firestore.sh bookings 1    # конкретный документ
-./backend/scripts/firestore.sh services
+curl "http://localhost:8079/v1/projects/university-booking-demo/databases/(default)/documents/bookings"
+curl "http://localhost:8079/v1/projects/university-booking-demo/databases/(default)/documents/bookings/1"
+curl "http://localhost:8079/v1/projects/university-booking-demo/databases/(default)/documents/services"
 ```
 
 Очистка Firestore:
@@ -349,7 +349,7 @@ curl -X DELETE "http://localhost:8079/emulator/v1/projects/university-booking-de
 | Запись в журнал   | `ONE`     | Достаточно подтверждения одной реплики — минимальная задержка |
 | Чтение из журнала | `QUORUM`  | Нужны 2 из 3 реплик — гарантирует видимость последней записи  |
 
-При RF=3 и QUORUM чтение всегда успешно, если доступны хотя бы 2 узла. Запись `ONE` не гарантирует немедленную видимость через QUORUM: 1 + 2 = 3, пересечение наборов реплик не гарантировано.
+При RF=3 и QUORUM чтение всегда успешно, если доступны хотя бы 2 узла. При RF=3 и QUORUM=2 пересечение реплик записи и чтения всегда есть (1 + 2 > 3), поэтому QUORUM-чтение гарантированно увидит запись с уровнем ONE.
 
 ## API журнала событий
 
@@ -430,7 +430,7 @@ docker exec scylla1 nodetool status
 Сравнивает доступность и задержку в трёх фазах: все 3 узла работают → scylla3 остановлен → scylla3 возвращён.
 
 ```bash
-./scripts/scylla-consistency-experiment.sh
+./backend/scripts/scylla-consistency-experiment.sh
 # Результаты: results/consistency/results.csv
 ```
 
@@ -439,7 +439,7 @@ docker exec scylla1 nodetool status
 ### Исследование tombstones
 
 ```bash
-./scripts/scylla-tombstone-experiment.sh
+./backend/scripts/scylla-tombstone-experiment.sh
 ```
 
 Шаги: вставка 100 строк → flush → удаление 40 строк → flush → `scylla sstable dump-data` (видны маркеры `partition_tombstone`) → ожидание `gc_grace_seconds=60` → compaction → tombstones физически удалены, строки по-прежнему не читаются.
@@ -449,7 +449,7 @@ Tombstones необходимы при RF>1: узлы, которые не по�
 ### Нагрузочное тестирование
 
 ```bash
-./scripts/scylla-load-test.sh
+./backend/scripts/scylla-load-test.sh
 # Результаты: results/loadtest/summary.csv
 ```
 
