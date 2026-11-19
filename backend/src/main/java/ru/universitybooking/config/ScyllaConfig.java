@@ -6,8 +6,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 
 @Configuration
 public class ScyllaConfig {
@@ -48,52 +51,22 @@ public class ScyllaConfig {
     }
 
     private void initSchema(CqlSession session) {
-        log.info("Инициализация схемы ScyllaDB (keyspace={})", keyspace);
-        session.execute(
-                "CREATE KEYSPACE IF NOT EXISTS " + keyspace +
-                " WITH replication = {'class': 'NetworkTopologyStrategy', '" + localDatacenter + "': 3}" +
-                " AND durable_writes = true"
-        );
+        log.info("Инициализация схемы ScyllaDB из scylla-schema.cql (keyspace={})", keyspace);
+        try {
+            ClassPathResource resource = new ClassPathResource("scylla-schema.cql");
+            String cql = new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 
-        session.execute(
-                "CREATE TABLE IF NOT EXISTS " + keyspace + ".events_by_result_day (" +
-                "    result      text," +
-                "    day_utc     text," +
-                "    occurred_at timestamp," +
-                "    event_id    uuid," +
-                "    operation   text," +
-                "    booking_id  bigint," +
-                "    error_code  text," +
-                "    PRIMARY KEY ((result, day_utc), occurred_at, event_id)" +
-                ") WITH CLUSTERING ORDER BY (occurred_at DESC, event_id DESC)"
-        );
+            cql = cql.replace("datacenter1", localDatacenter).replace("university_events", keyspace);
 
-        session.execute(
-                "CREATE TABLE IF NOT EXISTS " + keyspace + ".events_by_operation_day (" +
-                "    operation   text," +
-                "    day_utc     text," +
-                "    occurred_at timestamp," +
-                "    event_id    uuid," +
-                "    result      text," +
-                "    booking_id  bigint," +
-                "    error_code  text," +
-                "    PRIMARY KEY ((operation, day_utc), occurred_at, event_id)" +
-                ") WITH CLUSTERING ORDER BY (occurred_at DESC, event_id DESC)"
-        );
-
-        session.execute(
-                "CREATE TABLE IF NOT EXISTS " + keyspace + ".events_by_booking_day (" +
-                "    booking_id  bigint," +
-                "    day_utc     text," +
-                "    occurred_at timestamp," +
-                "    event_id    uuid," +
-                "    operation   text," +
-                "    result      text," +
-                "    error_code  text," +
-                "    PRIMARY KEY ((booking_id, day_utc), occurred_at, event_id)" +
-                ") WITH CLUSTERING ORDER BY (occurred_at DESC, event_id DESC)"
-        );
-
+            for (String stmt : cql.split(";")) {
+                String trimmed = stmt.strip();
+                if (!trimmed.isEmpty()) {
+                    session.execute(trimmed);
+                }
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException("Не удалось прочитать scylla-schema.cql", e);
+        }
         log.info("Схема ScyllaDB готова");
     }
 }
