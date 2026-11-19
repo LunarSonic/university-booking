@@ -159,10 +159,13 @@ export function EventsJournal() {
             <input className="form-input" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
           </div>
 
-          <button className="btn btn-primary" onClick={handleSearch} disabled={loading} style={{ alignSelf: 'flex-end' }}>
-            <Search size={14} />
-            Найти
-          </button>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label" style={{ visibility: 'hidden' }}>Поиск</label>
+            <button className="btn btn-primary" onClick={handleSearch} disabled={loading}>
+              <Search size={14} />
+              Найти
+            </button>
+          </div>
         </div>
       </div>
 

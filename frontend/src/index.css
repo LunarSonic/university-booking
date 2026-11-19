@@ -484,6 +484,11 @@ body {
   box-shadow: 0 0 0 2px rgba(125, 128, 218, 0.15);
 }
 
+select.form-input {
+  height: 2.5rem;
+  box-sizing: border-box;
+}
+
 .form-error {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.25);
