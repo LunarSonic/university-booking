@@ -7,8 +7,6 @@ import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.Row;
 import jakarta.annotation.PostConstruct;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
@@ -21,8 +19,6 @@ import java.util.List;
 
 @Repository
 public class EventJournalRepository {
-
-    private static final Logger log = LoggerFactory.getLogger(EventJournalRepository.class);
 
     private final CqlSession session;
     private final String keyspace;
@@ -73,7 +69,6 @@ public class EventJournalRepository {
                 "FROM " + keyspace + ".events_by_booking_day " +
                 "WHERE booking_id = ? AND day_utc = ?"
         );
-        log.info("ScyllaDB prepared statements ready");
     }
 
     public void save(EventRecord event) {
@@ -174,7 +169,6 @@ public class EventJournalRepository {
                 return;
             } catch (Exception e) {
                 last = e;
-                log.warn("Ошибка записи в {} (попытка {}/{}): {}", table, i + 1, maxAttempts, e.getMessage());
                 if (i < maxAttempts - 1) {
                     try { Thread.sleep(100L * (i + 1)); } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
@@ -183,7 +177,6 @@ public class EventJournalRepository {
                 }
             }
         }
-        log.error("Не удалось записать событие в {} после {} попыток", table, maxAttempts, last);
     }
 
     public record PageResult(List<EventRecord> items, ByteBuffer nextPagingState) {}

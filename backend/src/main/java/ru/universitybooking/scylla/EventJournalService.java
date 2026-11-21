@@ -1,7 +1,5 @@
 package ru.universitybooking.scylla;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.nio.ByteBuffer;
@@ -14,8 +12,6 @@ import java.util.UUID;
 
 @Service
 public class EventJournalService {
-
-    private static final Logger log = LoggerFactory.getLogger(EventJournalService.class);
 
     private final EventJournalRepository repo;
 
@@ -33,14 +29,7 @@ public class EventJournalService {
                 bookingId,
                 errorCode
         );
-        Thread.ofVirtual().start(() -> {
-            try {
-                repo.save(event);
-            } catch (Exception e) {
-                log.error("Не удалось сохранить событие {}/{}: {}",
-                        operation, result, e.getMessage(), e);
-            }
-        });
+        Thread.ofVirtual().start(() -> repo.save(event));
     }
 
     public EventPage getByResult(EventResult result, Instant from, Instant to,

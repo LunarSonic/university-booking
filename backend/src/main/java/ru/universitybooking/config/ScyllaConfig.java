@@ -1,8 +1,6 @@
 package ru.universitybooking.config;
 
 import com.datastax.oss.driver.api.core.CqlSession;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,8 +13,6 @@ import java.nio.charset.StandardCharsets;
 @Configuration
 public class ScyllaConfig {
 
-    private static final Logger log = LoggerFactory.getLogger(ScyllaConfig.class);
-
     @Value("${scylla.contact-points}")
     private String contactPoints;
 
@@ -27,9 +23,7 @@ public class ScyllaConfig {
     private String keyspace;
 
     @Bean(destroyMethod = "close")
-    public CqlSession cqlSession() {
-        log.info("Подключение к ScyllaDB: {} (datacenter={})", contactPoints, localDatacenter);
-
+    public CqlSession cqlSession() throws IOException {
         String host;
         int port;
         int colon = contactPoints.lastIndexOf(':');
@@ -50,23 +44,17 @@ public class ScyllaConfig {
         return session;
     }
 
-    private void initSchema(CqlSession session) {
-        log.info("Инициализация схемы ScyllaDB из scylla-schema.cql (keyspace={})", keyspace);
-        try {
-            ClassPathResource resource = new ClassPathResource("scylla-schema.cql");
-            String cql = new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+    private void initSchema(CqlSession session) throws IOException {
+        ClassPathResource resource = new ClassPathResource("scylla-schema.cql");
+        String cql = new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 
-            cql = cql.replace("datacenter1", localDatacenter).replace("university_events", keyspace);
+        cql = cql.replace("datacenter1", localDatacenter).replace("university_events", keyspace);
 
-            for (String stmt : cql.split(";")) {
-                String trimmed = stmt.strip();
-                if (!trimmed.isEmpty()) {
-                    session.execute(trimmed);
-                }
+        for (String stmt : cql.split(";")) {
+            String trimmed = stmt.strip();
+            if (!trimmed.isEmpty()) {
+                session.execute(trimmed);
             }
-        } catch (IOException e) {
-            throw new IllegalStateException("Не удалось прочитать scylla-schema.cql", e);
         }
-        log.info("Схема ScyllaDB готова");
     }
 }
