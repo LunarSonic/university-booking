@@ -1,0 +1,201 @@
+operation,ok,ms,output,value_visible
+write_ONE,True,161.9744169875048,"Consistency level set to ONE.
+",
+read_QUORUM_after_ONE,True,142.39283301867545,"Consistency level set to QUORUM.
+
+ value
+----------------
+ baseline-0-ONE
+
+(1 rows)
+",True
+write_QUORUM,True,144.447416998446,"Consistency level set to QUORUM.
+",
+read_QUORUM_after_QUORUM,True,144.16704198811203,"Consistency level set to QUORUM.
+
+ value
+-------------------
+ baseline-0-QUORUM
+
+(1 rows)
+",True
+write_ONE,True,141.2525000050664,"Consistency level set to ONE.
+",
+read_QUORUM_after_ONE,True,146.9023340032436,"Consistency level set to QUORUM.
+
+ value
+----------------
+ baseline-1-ONE
+
+(1 rows)
+",True
+write_QUORUM,True,141.39654103200883,"Consistency level set to QUORUM.
+",
+read_QUORUM_after_QUORUM,True,141.78720797644928,"Consistency level set to QUORUM.
+
+ value
+-------------------
+ baseline-1-QUORUM
+
+(1 rows)
+",True
+write_ONE,True,147.8070419980213,"Consistency level set to ONE.
+",
+read_QUORUM_after_ONE,True,159.65704200789332,"Consistency level set to QUORUM.
+
+ value
+----------------
+ baseline-2-ONE
+
+(1 rows)
+",True
+write_QUORUM,True,152.26241602795199,"Consistency level set to QUORUM.
+",
+read_QUORUM_after_QUORUM,True,142.61587499640882,"Consistency level set to QUORUM.
+
+ value
+-------------------
+ baseline-2-QUORUM
+
+(1 rows)
+",True
+write_ONE,True,148.97516701603308,"Consistency level set to ONE.
+",
+read_QUORUM_after_ONE,True,140.07850002963096,"Consistency level set to QUORUM.
+
+ value
+----------------
+ baseline-3-ONE
+
+(1 rows)
+",True
+write_QUORUM,True,142.91454199701548,"Consistency level set to QUORUM.
+",
+read_QUORUM_after_QUORUM,True,136.58250001026317,"Consistency level set to QUORUM.
+
+ value
+-------------------
+ baseline-3-QUORUM
+
+(1 rows)
+",True
+write_ONE,True,145.15395800117403,"Consistency level set to ONE.
+",
+read_QUORUM_after_ONE,True,140.21820900961757,"Consistency level set to QUORUM.
+
+ value
+----------------
+ baseline-4-ONE
+
+(1 rows)
+",True
+write_QUORUM,True,144.4154999917373,"Consistency level set to QUORUM.
+",
+read_QUORUM_after_QUORUM,True,153.72925001429394,"Consistency level set to QUORUM.
+
+ value
+-------------------
+ baseline-4-QUORUM
+
+(1 rows)
+",True
+write_ONE,True,143.92674999544397,"Consistency level set to ONE.
+",
+read_QUORUM_after_ONE,True,140.06733300630003,"Consistency level set to QUORUM.
+
+ value
+----------------
+ baseline-5-ONE
+
+(1 rows)
+",True
+write_QUORUM,True,138.08541605249047,"Consistency level set to QUORUM.
+",
+read_QUORUM_after_QUORUM,True,147.1132090082392,"Consistency level set to QUORUM.
+
+ value
+-------------------
+ baseline-5-QUORUM
+
+(1 rows)
+",True
+write_ONE,True,142.0152080245316,"Consistency level set to ONE.
+",
+read_QUORUM_after_ONE,True,145.50845802295953,"Consistency level set to QUORUM.
+
+ value
+----------------
+ baseline-6-ONE
+
+(1 rows)
+",True
+write_QUORUM,True,156.4466659910977,"Consistency level set to QUORUM.
+",
+read_QUORUM_after_QUORUM,True,141.76095800939947,"Consistency level set to QUORUM.
+
+ value
+-------------------
+ baseline-6-QUORUM
+
+(1 rows)
+",True
+write_ONE,True,146.87258302001283,"Consistency level set to ONE.
+",
+read_QUORUM_after_ONE,True,146.1477919947356,"Consistency level set to QUORUM.
+
+ value
+----------------
+ baseline-7-ONE
+
+(1 rows)
+",True
+write_QUORUM,True,149.6937920455821,"Consistency level set to QUORUM.
+",
+read_QUORUM_after_QUORUM,True,154.9647080246359,"Consistency level set to QUORUM.
+
+ value
+-------------------
+ baseline-7-QUORUM
+
+(1 rows)
+",True
+write_ONE,True,133.75687500229105,"Consistency level set to ONE.
+",
+read_QUORUM_after_ONE,True,146.45883400226012,"Consistency level set to QUORUM.
+
+ value
+----------------
+ baseline-8-ONE
+
+(1 rows)
+",True
+write_QUORUM,True,141.3115409668535,"Consistency level set to QUORUM.
+",
+read_QUORUM_after_QUORUM,True,149.4522500433959,"Consistency level set to QUORUM.
+
+ value
+-------------------
+ baseline-8-QUORUM
+
+(1 rows)
+",True
+write_ONE,True,151.849125046283,"Consistency level set to ONE.
+",
+read_QUORUM_after_ONE,True,138.34133296040818,"Consistency level set to QUORUM.
+
+ value
+----------------
+ baseline-9-ONE
+
+(1 rows)
+",True
+write_QUORUM,True,130.86670800112188,"Consistency level set to QUORUM.
+",
+read_QUORUM_after_QUORUM,True,142.19287503510714,"Consistency level set to QUORUM.
+
+ value
+-------------------
+ baseline-9-QUORUM
+
+(1 rows)
+",True

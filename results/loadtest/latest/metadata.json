@@ -1,0 +1,54 @@
+{
+  "run_id": "20261121_130338_193508_97541",
+  "app_url": "http://localhost:8080",
+  "measurement_window_s": 30.0,
+  "warmup_s": 10.0,
+  "concurrency": [
+    1,
+    5,
+    10,
+    20,
+    50
+  ],
+  "operation": "all",
+  "request_timeout_s": 30,
+  "read_page_size": 20,
+  "preload_bookings": 20,
+  "rate_limit_strategy": "dedicated simulated benchmark IP per POST; server limit unchanged",
+  "write_scope": "HTTP POST /bookings: Firestore transaction; Scylla journal is asynchronous",
+  "read_scope": "HTTP GET /events/by-result, first page of 20 successful events",
+  "latency_population": "successful requests only; nearest-rank p95",
+  "throughput_denominator": "actual wall time including completion of in-flight requests",
+  "raw_results": "/Users/rozze/IdeaProjects/university-booking/results/loadtest/20261121_130338_193508_97541/raw",
+  "preload_booking_ids": [
+    16158,
+    16159,
+    16160,
+    16161,
+    16162,
+    16163,
+    16164,
+    16165,
+    16166,
+    16167,
+    16168,
+    16169,
+    16170,
+    16171,
+    16172,
+    16173,
+    16174,
+    16175,
+    16176,
+    16177
+  ],
+  "status": "complete",
+  "completed_cases": 10,
+  "error_examples": [
+    {
+      "status": "500",
+      "body": "{\"error\":\"Внутренняя ошибка сервера: Ошибка транзакции Firestore\"}",
+      "count": 155
+    }
+  ]
+}

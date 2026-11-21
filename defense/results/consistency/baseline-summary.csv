@@ -1,0 +1,5 @@
+phase,operation,success,errors,avg_ms,p95_ms,visible_reads
+baseline,read_QUORUM_after_ONE,10,0,144.58,159.66,10
+baseline,read_QUORUM_after_QUORUM,10,0,145.44,154.96,10
+baseline,write_ONE,10,0,146.36,161.97,
+baseline,write_QUORUM,10,0,144.18,156.45,

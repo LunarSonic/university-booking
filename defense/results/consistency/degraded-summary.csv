@@ -1,0 +1,5 @@
+phase,operation,success,errors,avg_ms,p95_ms,visible_reads
+degraded,read_QUORUM_after_ONE,10,0,148.78,160.06,10
+degraded,read_QUORUM_after_QUORUM,10,0,148.17,159.47,10
+degraded,write_ONE,10,0,143.08,151.44,
+degraded,write_QUORUM,10,0,151.22,170.32,

@@ -49,3 +49,12 @@ secrets/
 # Local verification dependencies and emulator logs
 tests/rules/node_modules/
 *-debug.log
+
+# Local startup diagnostics
+/scylla3-startup.log
+
+# Per-request load logs; summaries, tables and run metadata are versioned
+/results/loadtest/*/raw/
+
+# Superseded tombstone helper runs; verified runs are in results/tombstones/
+/defense/results/tombstones_*/

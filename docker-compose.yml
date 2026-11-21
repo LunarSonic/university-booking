@@ -6,6 +6,7 @@ services:
     command: >
       --seeds=scylla1
       --smp 1
+      --reactor-backend=epoll
       --memory 750M
       --overprovisioned 1
       --api-address 0.0.0.0
@@ -27,6 +28,7 @@ services:
     command: >
       --seeds=scylla1
       --smp 1
+      --reactor-backend=epoll
       --memory 750M
       --overprovisioned 1
       --api-address 0.0.0.0
@@ -51,6 +53,7 @@ services:
     command: >
       --seeds=scylla1
       --smp 1
+      --reactor-backend=epoll
       --memory 750M
       --overprovisioned 1
       --api-address 0.0.0.0

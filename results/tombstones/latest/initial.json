@@ -1,0 +1,58 @@
+{
+  "run_id": "20261121_121252_499791_95268",
+  "stage": "До DELETE: 100 строк, маркеров удаления нет",
+  "table": "university_defense.tombstone_20261121_121252_499791_95268",
+  "live_rows": 100,
+  "deleted_partition_1_live_rows": 20,
+  "untouched_partition_3_live_rows": 20,
+  "nodes": {
+    "scylla1": {
+      "sstable_files": 1,
+      "row_versions_in_files": 100,
+      "partition_tombstone_count": 0,
+      "partition_tombstones": [],
+      "partition_keys_in_files": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ],
+      "raw_dump_files": [
+        "results/tombstones/20261121_121252_499791_95268/raw/initial/scylla1/1.json"
+      ]
+    },
+    "scylla2": {
+      "sstable_files": 1,
+      "row_versions_in_files": 100,
+      "partition_tombstone_count": 0,
+      "partition_tombstones": [],
+      "partition_keys_in_files": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ],
+      "raw_dump_files": [
+        "results/tombstones/20261121_121252_499791_95268/raw/initial/scylla2/1.json"
+      ]
+    },
+    "scylla3": {
+      "sstable_files": 1,
+      "row_versions_in_files": 100,
+      "partition_tombstone_count": 0,
+      "partition_tombstones": [],
+      "partition_keys_in_files": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5"
+      ],
+      "raw_dump_files": [
+        "results/tombstones/20261121_121252_499791_95268/raw/initial/scylla3/1.json"
+      ]
+    }
+  }
+}
